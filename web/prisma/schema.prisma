@@ -1,0 +1,88 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Provider {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  description String?
+  icon        String?
+  website     String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  accounts    ApiAccount[]
+}
+
+model ApiAccount {
+  id              String    @id @default(cuid())
+  name            String
+  providerId      String
+  provider        Provider  @relation(fields: [providerId], references: [id], onDelete: Cascade)
+  apiKey          String
+  status          String    @default("active") // active, expired, disabled, backup
+  priority        Int       @default(5) // 1-10, higher = preferred
+  totalCredits    Float     @default(0)
+  usedCredits     Float     @default(0)
+  creditUnit      String    @default("USD") // USD, requests, tokens, unlimited
+  healthScore     Float     @default(100)
+  avgLatencyMs    Float     @default(0)
+  successRate     Float     @default(100)
+  totalRequests   Int       @default(0)
+  todayRequests   Int       @default(0)
+  errorCount      Int       @default(0)
+  lastUsedAt      DateTime?
+  expiresAt       DateTime?
+  notes           String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  usageHistory    UsageLog[]
+  routingSource   RoutingEvent[] @relation("RoutingSource")
+  routingTarget   RoutingEvent[] @relation("RoutingTarget")
+}
+
+model UsageLog {
+  id            String     @id @default(cuid())
+  accountId     String
+  account       ApiAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  endpoint      String
+  model         String?
+  inputTokens   Int        @default(0)
+  outputTokens  Int        @default(0)
+  cost          Float      @default(0)
+  latencyMs     Int        @default(0)
+  status        String     @default("success") // success, error, timeout
+  errorMessage  String?
+  createdAt     DateTime   @default(now())
+}
+
+model RoutingEvent {
+  id              String   @id @default(cuid())
+  sourceAccountId String?
+  sourceAccount   ApiAccount? @relation("RoutingSource", fields: [sourceAccountId], references: [id], onDelete: SetNull)
+  targetAccountId String?
+  targetAccount   ApiAccount? @relation("RoutingTarget", fields: [targetAccountId], references: [id], onDelete: SetNull)
+  reason          String   // failover, load_balance, credit_low, manual, round_robin
+  provider        String?
+  details         String?
+  createdAt       DateTime @default(now())
+}
+
+model Secret {
+  id          String   @id @default(cuid())
+  name        String
+  type        String   // api_key, password, oauth, service_account, token, certificate, ssh_key, other
+  provider    String   // Google, AWS, Anthropic, GitHub, etc.
+  purpose     String?  // cloud_storage, email, database, ai_api, deployment, identity, other
+  credentials String   // JSON blob: { email, password, token, key, client_id, ... }
+  status      String   @default("active") // active, disabled, expired
+  notes       String?
+  expiresAt   DateTime?
+  lastUsedAt  DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
