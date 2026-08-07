@@ -1,8 +1,8 @@
 node_modules/
-.next/
-dist/
+.idea/
+.gradle/
 build/
-coverage/
+*.iml
+local.properties
 .env
 .env.*
-*.log
