@@ -18,9 +18,9 @@
 //   bun scripts/apibank.ts vault             List all secrets in the vault
 //   bun scripts/apibank.ts vault-add <name> <type> <provider> <key=val>...
 //   bun scripts/apibank.ts vault-get <purpose> [provider]
-//   bun scripts/apibank.ts vault-del <id>    Delete a secret
-//   bun scripts/apibank.ts --json            Machine-readable output
-// ============================================================
+  //   bun scripts/apibank.ts daemons
+  //   bun scripts/apibank.ts pass-issue Baro api_account 120
+  //   bun scripts/apibank.ts audit --json
 
 export {};
 
@@ -348,6 +348,130 @@ async function cmdLogs(opts: CliOpts) {
   console.log('');
 }
 
+// ─── Gate Commands ───────────────────────────────────────────
+
+async function cmdDaemons(opts: CliOpts) {
+  const daemons = await fetch(`${BASE}/api/daemons`).then(r => r.json());
+  if (opts.json) return json(daemons);
+
+  console.log('\n  \x1b[1mTRUSTED FAMILY TREE — Lineage\x1b[0m\n');
+  if (daemons.length === 0) { console.log('  (no daemons registered)\n'); return; }
+  console.log('  ' + 'STATUS'.padEnd(10) + 'ROLE'.padEnd(16) + 'NAME'.padEnd(18) + 'DESIGNATION'.padEnd(14) + 'TRUST' + '  PASSES');
+  console.log('  ' + '─'.repeat(80));
+  for (const d of daemons) {
+    const sc = d.status === 'active' ? '\x1b[32m✓\x1b[0m' : '\x1b[31m✗\x1b[0m';
+    console.log(`  ${sc} ${d.status.padEnd(8)} ${d.role.padEnd(16)} ${d.name.padEnd(18)} ${d.designation.padEnd(14)} ${d.trustLevel}/10  ${d.passCount}`);
+    if (d.parentName) console.log(`     └── Parent: ${d.parentName}`);
+  }
+  console.log(`\n  Total: ${daemons.length} daemons\n`);
+}
+
+async function cmdDaemonRegister(args: string[], opts: CliOpts) {
+  const name = args[0]; const designation = args[1]; const role = args[2] || 'agent'; const purpose = args[3] || '';
+  if (!name || !designation || !purpose) {
+    console.log('\n  \x1b[31mUsage:\x1b[0m daemon-reg <name> <designation> [role] <purpose>\n');
+    console.log('  Roles: researcher, orchestrator, sensory, creative, agent, os, guardian\n');
+    return;
+  }
+  const res = await fetch(`${BASE}/api/daemons`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name, designation, role, purpose }),
+  });
+  const daemon = await res.json();
+  if (opts.json) return json(daemon);
+  console.log(`\n  \x1b[32m✓\x1b[0m Daemon registered: ${daemon.name} (${daemon.designation}) — ${daemon.role}\n`);
+}
+
+async function cmdPasses(opts: CliOpts) {
+  const passes = await fetch(`${BASE}/api/passes`).then(r => r.json());
+  if (opts.json) return json(passes);
+
+  console.log('\n  \x1b[1mACCESS PASSES\x1b[0m\n');
+  if (passes.length === 0) { console.log('  (no passes issued)\n'); return; }
+  for (const p of passes) {
+    const sc = p.status === 'active' ? '\x1b[32m✓\x1b[0m' : p.status === 'revoked' ? '\x1b[31m✗\x1b[0m' : '\x1b[33m◆\x1b[0m';
+    const ttl = Math.max(0, Math.floor((new Date(p.expiresAt).getTime() - Date.now()) / 60000));
+    const ttlStr = ttl >= 60 ? `${Math.floor(ttl/60)}h ${ttl%60}m` : `${ttl}m`;
+    console.log(`  ${sc} ${p.status.padEnd(10)} ${p.daemonName || p.requesterName.padEnd(16)} ${p.resourceType.padEnd(14)} ${p.scope.padEnd(8)} ${ttlStr.padEnd(8)} ${p.usedCount}/${p.maxUses || '∞'}`);
+  }
+  console.log(`\n  Total: ${passes.length} passes\n`);
+}
+
+async function cmdPassIssue(args: string[], opts: CliOpts) {
+  const requester = args[0]; const resourceType = args[1] || 'api_account'; const ttl = parseInt(args[2]) || 60;
+  if (!requester) {
+    console.log('\n  \x1b[31mUsage:\x1b[0m pass-issue <requester> [resource_type] [ttl_minutes]\n');
+    return;
+  }
+  const res = await fetch(`${BASE}/api/passes`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ requesterName: requester, resourceType, ttlMinutes: ttl }),
+  });
+  const pass = await res.json();
+  if (opts.json) return json(pass);
+  console.log(`\n  \x1b[32m✓\x1b[0m Pass issued to ${requester}`);
+  console.log(`    Token: ${pass.token}`);
+  console.log(`    Scope: ${pass.resourceType} / ${pass.scope}`);
+  console.log(`    TTL:   ${ttl} minutes\n`);
+}
+
+async function cmdAudit(opts: CliOpts) {
+  const [statsData, eventsData] = await Promise.all([
+    fetch(`${BASE}/api/audit?stats=true`).then(r => r.json()),
+    fetch(`${BASE}/api/audit?perPage=20`).then(r => r.json()),
+  ]);
+  if (opts.json) return json({ stats: statsData, events: eventsData.events });
+
+  console.log('\n  ╔══════════════════════════════════════╗');
+  console.log('  ║        A U D I T   T R A I L       ║');
+  console.log('  ╚══════════════════════════════════════╝\n');
+  console.log(`  Total Events:    ${statsData.total}`);
+  console.log(`  \x1b[32mAllowed:         ${statsData.allowed}\x1b[0m`);
+  console.log(`  \x1b[31mDenied:          ${statsData.denied}\x1b[0m`);
+  console.log(`  Last Hour:        ${statsData.recentHour}\n`);
+
+  if (eventsData.events.length > 0) {
+    console.log('  ' + 'ACTOR'.padEnd(18) + 'ACTION'.padEnd(20) + 'OUTCOME'.padEnd(10) + 'TIME');
+    console.log('  ' + '─'.repeat(75));
+    for (const e of eventsData.events) {
+      const oc = e.outcome === 'allowed' ? '\x1b[32m' : '\x1b[31m';
+      const ago = Math.floor((Date.now() - new Date(e.createdAt).getTime()) / 60000);
+      const timeStr = ago < 60 ? `${ago}m ago` : `${Math.floor(ago/60)}h ago`;
+      console.log(`  ${e.actorName.padEnd(18)} ${e.action.replace(/_/g,' ').padEnd(20)} ${oc}${e.outcome.padEnd(8)}\x1b[0m ${timeStr}`);
+    }
+  }
+  console.log('');
+}
+
+async function cmdPolicies(opts: CliOpts) {
+  const policies = await fetch(`${BASE}/api/policies`).then(r => r.json());
+  if (opts.json) return json(policies);
+
+  console.log('\n  \x1b[1mACCESS POLICIES\x1b[0m\n');
+  if (policies.length === 0) { console.log('  (no policies defined — default allow-all)\n'); return; }
+  for (const p of policies) {
+    const effect = p.effect === 'allow' ? '\x1b[32mALLOW\x1b[0m ' : '\x1b[31mDENY \x1b[0m ';
+    console.log(`  ${effect} P${String(p.priority).padStart(3)}  ${p.name}`);
+    console.log(`         ${p.resourceType}${p.resourceId ? ':' + p.resourceId : ''} / ${p.scope}${p.daemonRole ? ' [' + p.daemonRole + ']' : ''}`);
+  }
+  console.log(`\n  Total: ${policies.length} policies\n`);
+}
+
+async function cmdPerimeter(opts: CliOpts) {
+  const rules = await fetch(`${BASE}/api/perimeter`).then(r => r.json());
+  if (opts.json) return json(rules);
+
+  console.log('\n  \x1b[1mTHE PERIMETER — Passage Rules\x1b[0m\n');
+  if (rules.length === 0) { console.log('  (no rules — perimeter is open)\n'); return; }
+  for (const r of rules) {
+    const dir = r.direction === 'outbound' ? '↑OUT' : r.direction === 'inbound' ? '↓IN ' : '↔BI ';
+    const action = r.action === 'block' ? '\x1b[31mBLOCK\x1b[0m' : r.action === 'sanitize' ? '\x1b[33mSANIT\x1b[0m' : r.action === 'log_only' ? '\x1b[36mLOG  \x1b[0m' : '\x1b[32mALLOW\x1b[0m';
+    console.log(`  ${dir}  ${action}  P${String(r.priority).padStart(2)}  ${r.name}`);
+    console.log(`         Type: ${r.dataType}${r.pattern ? ' | ' + r.pattern : ''} | ${r.hitCount} hits`);
+  }
+  console.log(`\n  Total: ${rules.length} rules\n`);
+}
+
 // ─── Main ───────────────────────────────────────────────────
 
 async function main() {
@@ -357,7 +481,7 @@ async function main() {
 
   if (!cmd || cmd === 'help') {
     console.log(`
-  \x1b[1mAruk CLI\x1b[0m — Keeper of secrets and keys
+  \x1b[1mAruk CLI\x1b[0m — The immovable protective perimeter
 
   \x1b[36mAPI Keys:\x1b[0m
     list                          List all accounts
@@ -415,6 +539,13 @@ async function main() {
       case 'vault-add': await cmdVaultAdd(args.slice(args.indexOf(cmd) + 1), opts); break;
       case 'vault-get': await cmdVaultGet(args[args.indexOf(cmd) + 1] || '', args[args.indexOf(cmd) + 2], opts); break;
       case 'vault-del': await cmdVaultDel(args[args.indexOf(cmd) + 1] || '', opts); break;
+      case 'daemons': await cmdDaemons(opts); break;
+      case 'daemon-reg': await cmdDaemonRegister(args.slice(args.indexOf(cmd) + 1), opts); break;
+      case 'passes': await cmdPasses(opts); break;
+      case 'pass-issue': await cmdPassIssue(args.slice(args.indexOf(cmd) + 1), opts); break;
+      case 'policies': await cmdPolicies(opts); break;
+      case 'perimeter': await cmdPerimeter(opts); break;
+      case 'audit': await cmdAudit(opts); break;
       default: console.log(`\n  Unknown command: ${cmd}\n  Run with no args for help.\n`);
     }
   } catch (e: any) {

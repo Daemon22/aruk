@@ -1,0 +1,45 @@
+# ============================================================
+# Aruk — docker-compose for personal deployment
+# ============================================================
+# Usage:
+#   docker compose up -d          # Start Aruk
+#   docker compose logs -f         # Follow logs
+#   docker compose down            # Stop
+#   docker compose up -d --build  # Rebuild and restart
+#
+# On first run, Aruk generates a session secret and an encryption
+# key and persists them into the aruk-data volume. To use your own
+# instead (recommended for backups/multi-instance setups), copy
+# .env.example to .env and set ARUK_SESSION_SECRET / ARUK_ENCRYPTION_KEY.
+# ============================================================
+
+services:
+  aruk:
+    build: .
+    container_name: aruk
+    restart: unless-stopped
+    ports:
+      - "${PORT:-3000}:3000"
+    environment:
+      - DATABASE_URL=file:/app/data/aruk.db
+      - APIBANK_URL=http://localhost:3000
+      - NEXT_TELEMETRY_DISABLED=1
+      # Recommended — if unset, Aruk generates one on first run and
+      # persists it to the aruk-data volume, so it survives restarts.
+      # Set these explicitly if you want a portable/rotatable secret
+      # (e.g. for backups or scaling to multiple instances).
+      # Generate with: openssl rand -hex 32
+      - ARUK_SESSION_SECRET=${ARUK_SESSION_SECRET:-}
+      - ARUK_ENCRYPTION_KEY=${ARUK_ENCRYPTION_KEY:-}
+    volumes:
+      - aruk-data:/app/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+volumes:
+  aruk-data:
+    driver: local

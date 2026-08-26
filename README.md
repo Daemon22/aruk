@@ -7,6 +7,8 @@ Aruk is a headless API key management platform. She watches your API accounts, t
 
 Any agent or script can ask Aruk for a key or credential without ever knowing which provider or account is being used beneath.
 
+See [ARUK_PRODUCTION_READINESS_AUDIT.md](ARUK_PRODUCTION_READINESS_AUDIT.md) for the current release-readiness findings and known blockers.
+
 ---
 
 ## Architecture
@@ -18,25 +20,25 @@ Aruk follows a four-layer architecture:
   │  Layer 4: Agent Plugin                          │
   │  OpenAI-compatible chat, auto-key injection,    │
   │  credential resolution for agents               │
-  │  (web/src/lib/agent-plugin/)                    │
+  │  (src/lib/agent-plugin/)                        │
   └────────┬────────────────────────────────────────┘
            │ imports & delegates through
   ┌────────┴────────────────────────────────────────┐
   │  Layer 3: SDK — ArukClient                      │
   │  HTTP client with auto-retry, typed responses   │
-  │  (web/src/lib/sdk/)                             │
+  │  (src/lib/sdk/)                                 │
   └────────┬────────────────────────────────────────┘
            │ HTTP / REST API
   ┌────────┴────────────────────────────────────────┐
   │  Layer 2: API Routes (Next.js) / CLI            │
   │  REST endpoints + terminal interface            │
-  │  (web/src/app/api/, cli/, web/scripts/)         │
+  │  (src/app/api/, cli/, scripts/)                │
   └────────┬────────────────────────────────────────┘
            │ direct import
   ┌────────┴────────────────────────────────────────┐
   │  Layer 1: Core Engine — ApiBank & SecretVault │
   │  Pure logic, no UI, no terminal                 │
-  │  (web/src/lib/api-bank/)                        │
+  │  (src/lib/api-bank/)                            │
   └─────────────────────────────────────────────────┘
 ```
 
@@ -44,10 +46,10 @@ Aruk follows a four-layer architecture:
 
 | Platform | Directory | Stack |
 | -------- | --------- | ----- |
-| **Web** | `web/` | Next.js 16, React 19, Prisma, Tailwind CSS, shadcn/ui |
-| **Desktop** | `web/src-tauri/` | Rust / Tauri v2, bundled Next.js server |
+| **Web** | `src/` | Next.js 16, React 19, Prisma, Tailwind CSS, shadcn/ui |
+| **Desktop** | `src-tauri/` | Rust / Tauri v2, bundled Next.js server |
 | **Android** | `android-sdk/android/` | Kotlin, Jetpack Compose, Hilt, Room |
-| **CLI** | `cli/` + `web/scripts/` | TypeScript (Bun runtime) |
+| **CLI** | `cli/` + `scripts/` | TypeScript (Bun runtime) |
 | **Docker** | `docker/` | Multi-stage build, Caddy reverse proxy |
 
 ---
@@ -66,11 +68,9 @@ Aruk follows a four-layer architecture:
 
 ## Quick Start
 
-### Web (Development)
+### Root application (Development)
 
 ```bash
-cd web
-
 # Copy env config
 cp .env.example .env
 
@@ -90,7 +90,7 @@ Visit `http://localhost:3000`.
 
 ```bash
 cd docker
-cp .env.example ../web/.env     # (or set DATABASE_URL in your environment)
+cp ../.env.example .env         # (or set DATABASE_URL in your environment)
 docker compose up -d
 ```
 
@@ -101,19 +101,18 @@ docker compose up -d
 export APIBANK_URL=http://localhost:3000
 
 # Get the best key
-bun web/scripts/apibank.ts use best
+bun scripts/apibank.ts use best
 
 # Check status
-bun web/scripts/apibank.ts status
+bun scripts/apibank.ts status
 
 # List vault secrets
-bun web/scripts/apibank.ts vault
+bun scripts/apibank.ts vault
 ```
 
 ### Desktop (Tauri)
 
 ```bash
-cd web
 bun run tauri:dev      # Development
 bun run tauri:build     # Production build (Windows)
 ```
@@ -159,22 +158,13 @@ curl -X POST http://localhost:3000/api/agent \
 
 ```
 aruk/
-├── web/                          # Next.js web app + Tauri desktop
-│   ├── src/
-│   │   ├── app/                  # Next.js App Router (pages + API routes)
-│   │   ├── components/           # React components (dashboard, shadcn/ui)
-│   │   ├── hooks/                # Custom React hooks
-│   │   └── lib/
-│   │       ├── api-bank/         # Layer 1: Core engine (ApiBank + SecretVault)
-│   │       ├── sdk/              # Layer 3: ArukClient SDK
-│   │       └── agent-plugin/     # Layer 4: Agent plugin
-│   ├── prisma/                   # Database schema + seed data
-│   ├── scripts/                  # CLI script + Tauri bundle preparer
-│   ├── src-tauri/                # Rust/Tauri desktop app
-│   ├── public/                   # Static assets
-│   ├── package.json
-│   ├── next.config.ts
-│   └── tsconfig.json
+├── src/                          # Canonical Next.js web app + API
+├── src-tauri/                    # Rust/Tauri desktop app
+├── public/                       # Static assets
+├── package.json
+├── next.config.ts
+├── tsconfig.json
+├── web/                          # Legacy tree; not authoritative
 ├── android-sdk/                  # Android SDK (Kotlin/Compose)
 │   └── android/                  # Android Studio project
 ├── cli/                          # Standalone CLI (TypeScript)
