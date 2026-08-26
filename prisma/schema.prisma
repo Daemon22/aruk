@@ -1,0 +1,288 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ─── Users ──────────────────────────────────────────────────────
+// Each person creates their own account.
+// Aruk serves them privately — their keys, their secrets,
+// their cloud accounts, their agents. Never shared.
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  name         String
+  passwordHash String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  accounts     ApiAccount[]
+  secrets      Secret[]
+  daemons      Daemon[]
+  cloudAccounts CloudAccount[]
+  accessPasses AccessPass[]
+  policies     AccessPolicy[]
+  auditEvents  AuditEvent[]
+  passageRules PassageRule[]
+}
+
+// ─── Core: API Accounts & Providers ───────────────────────────
+// Global reference data (providers) is shared.
+// Accounts belong to users.
+
+model Provider {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  description String?
+  icon        String?
+  website     String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  accounts    ApiAccount[]
+}
+
+model ApiAccount {
+  id              String    @id @default(cuid())
+  userId          String
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name            String
+  providerId      String
+  provider        Provider  @relation(fields: [providerId], references: [id], onDelete: Cascade)
+  apiKey          String
+  status          String    @default("active")
+  priority        Int       @default(5)
+  totalCredits    Float     @default(0)
+  usedCredits     Float     @default(0)
+  creditUnit      String    @default("USD")
+  healthScore     Float     @default(100)
+  avgLatencyMs    Float     @default(0)
+  successRate     Float     @default(100)
+  totalRequests   Int       @default(0)
+  todayRequests   Int       @default(0)
+  errorCount      Int       @default(0)
+  lastUsedAt      DateTime?
+  expiresAt       DateTime?
+  notes           String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  usageHistory    UsageLog[]
+  routingSource   RoutingEvent[] @relation("RoutingSource")
+  routingTarget   RoutingEvent[] @relation("RoutingTarget")
+}
+
+model UsageLog {
+  id            String     @id @default(cuid())
+  accountId     String
+  account       ApiAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  endpoint      String
+  model         String?
+  inputTokens   Int        @default(0)
+  outputTokens  Int        @default(0)
+  cost          Float      @default(0)
+  latencyMs     Int        @default(0)
+  status        String     @default("success")
+  errorMessage  String?
+  createdAt     DateTime   @default(now())
+}
+
+model RoutingEvent {
+  id              String   @id @default(cuid())
+  sourceAccountId String?
+  sourceAccount   ApiAccount? @relation("RoutingSource", fields: [sourceAccountId], references: [id], onDelete: SetNull)
+  targetAccountId String?
+  targetAccount   ApiAccount? @relation("RoutingTarget", fields: [targetAccountId], references: [id], onDelete: SetNull)
+  reason          String
+  provider        String?
+  details         String?
+  createdAt       DateTime @default(now())
+}
+
+model Secret {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name        String
+  type        String
+  provider    String
+  purpose     String?
+  credentials String
+  status      String   @default("active")
+  notes       String?
+  expiresAt   DateTime?
+  lastUsedAt  DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+// ─── The Keeper's Domain ─────────────────────────────────────
+// Aruk is the intermediary. He does not hold or inventory data.
+// He records WHO used a passage, WHEN, and WHERE it went.
+// Everything here is scoped to the user who owns it.
+
+// Daemons: The user's trusted intelligences.
+
+model Daemon {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name        String   // No longer unique globally — unique per user
+  designation String
+  role        String
+  parentId    String?
+  parent      Daemon?  @relation("DaemonLineage", fields: [parentId], references: [id], onDelete: SetNull)
+  children    Daemon[] @relation("DaemonLineage")
+  creatorId   String?
+  creator     Daemon?  @relation("DaemonCreator", fields: [creatorId], references: [id], onDelete: SetNull)
+  created     Daemon[] @relation("DaemonCreator")
+  description String?
+  purpose     String
+  capabilities String   // JSON array
+  status      String   @default("active")
+  trustLevel  Int       @default(5)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  issuedPasses  AccessPass[]
+  auditEvents   AuditEvent[] @relation("AuditActor")
+  policies      AccessPolicy[]
+
+  @@unique([userId, name])
+}
+
+// Access Policies: Rules that govern what may pass.
+
+model AccessPolicy {
+  id            String   @id @default(cuid())
+  userId        String
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name          String
+  description   String?
+  effect        String   @default("allow")
+  priority      Int      @default(0)
+  daemonId      String?
+  daemon        Daemon?  @relation(fields: [daemonId], references: [id], onDelete: SetNull)
+  daemonRole    String?
+  resourceType  String
+  resourceId    String?
+  conditions    String   // JSON
+  scope         String   @default("read")
+  status        String   @default("active")
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  passes        AccessPass[]
+}
+
+// Access Passes: Temporary, scoped, revocable tokens.
+
+model AccessPass {
+  id            String   @id @default(cuid())
+  userId        String
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  token         String   @unique
+  daemonId      String?
+  daemon        Daemon?  @relation(fields: [daemonId], references: [id], onDelete: SetNull)
+  requesterName String
+  policyId      String?
+  policy        AccessPolicy? @relation(fields: [policyId], references: [id], onDelete: SetNull)
+  resourceType  String
+  resourceId    String?
+  scope         String   @default("read")
+  maxUses       Int?
+  usedCount     Int       @default(0)
+  issuedAt      DateTime @default(now())
+  expiresAt     DateTime
+  lastUsedAt    DateTime?
+  status        String   @default("active")
+  reason        String?
+  auditEvents   AuditEvent[]
+
+  @@index([userId])
+}
+
+// Audit Events: WHO used WHAT passage, WHEN, and the outcome.
+// Aruk does not record what data was passed — only the fact
+// that passage occurred and by whom.
+
+model AuditEvent {
+  id            String   @id @default(cuid())
+  userId        String
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  actorId       String?
+  actor         Daemon?  @relation("AuditActor", fields: [actorId], references: [id], onDelete: SetNull)
+  actorName     String
+  actorRole     String?
+  action        String
+  resourceType  String
+  resourceId    String?
+  passId        String?
+  pass          AccessPass? @relation(fields: [passId], references: [id], onDelete: SetNull)
+  policyId      String?
+  reason        String?
+  outcome       String   @default("allowed")
+  details       String?
+  ipAddress     String?
+  createdAt     DateTime @default(now())
+}
+
+// Passage Rules: Controls what may leave and enter.
+
+model PassageRule {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name        String
+  direction   String
+  description String?
+  dataType    String
+  pattern     String?
+  action      String   @default("allow")
+  daemonRole  String?
+  resourceType String?
+  status      String   @default("active")
+  priority    Int      @default(0)
+  hitCount    Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+// ─── Cloud Accounts ──────────────────────────────────────────
+// User-connected cloud storage. Aruk is the intermediary —
+// he holds the credentials and logs passage, but does not
+// inventory or track the data itself.
+
+model CloudAccount {
+  id                String       @id @default(cuid())
+  userId            String
+  user              User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name              String
+  provider          String       // google_cloud, aws_s3, azure_blob, dropbox
+  projectId         String?
+  bucketName        String
+  region            String?
+  credentials       String       // JSON — stored securely, never exposed
+  credentialsMasked String?      // Display-safe identifier
+  status            String       @default("active")
+  notes             String?
+  connectedAt       DateTime     @default(now())
+  lastCheckedAt     DateTime?
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+  passageLogs       PassageLog[]
+}
+
+// Passage Log: WHO sent data WHERE, and WHEN.
+// Aruk does not know or record what the data IS.
+// He only knows that passage occurred.
+
+model PassageLog {
+  id              String       @id @default(cuid())
+  cloudAccountId  String
+  cloudAccount    CloudAccount  @relation(fields: [cloudAccountId], references: [id], onDelete: Cascade)
+  agentName       String       // Who initiated the passage
+  direction       String       // outbound (to cloud) or inbound (from cloud)
+  remotePath      String       // Where in the cloud
+  sizeBytes       Int          @default(0)
+  createdAt       DateTime     @default(now())
+}

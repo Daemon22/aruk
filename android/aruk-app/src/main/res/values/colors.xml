@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Emerald Brand -->
+    <color name="emerald_50">#ECFDF5</color>
+    <color name="emerald_100">#D1FAE5</color>
+    <color name="emerald_200">#A7F3D0</color>
+    <color name="emerald_300">#6EE7B7</color>
+    <color name="emerald_400">#34D399</color>
+    <color name="emerald_500">#10B981</color>
+    <color name="emerald_600">#059669</color>
+    <color name="emerald_700">#047857</color>
+    <color name="emerald_800">#065F46</color>
+    <color name="emerald_900">#064E3B</color>
+    <color name="emerald_950">#022C22</color>
+
+    <!-- Surface Dark -->
+    <color name="surface_dark">#0C0F14</color>
+    <color name="surface_card">#151922</color>
+    <color name="surface_hover">#1C2230</color>
+
+    <!-- Status -->
+    <color name="status_healthy">#10B981</color>
+    <color name="status_warning">#F59E0B</color>
+    <color name="status_critical">#EF4444</color>
+    <color name="status_inactive">#6B7280</color>
+</resources>
