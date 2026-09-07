@@ -124,6 +124,12 @@ export interface GateDecision {
   daemonId?: string | null;
 }
 
+export interface PassConstraint {
+  resourceType: string;
+  resourceId?: string;
+  scope: string;
+}
+
 export interface PassageLogView {
   id: string;
   cloudAccountId: string;
@@ -198,6 +204,12 @@ export class Keeper {
     capabilities?: string[];
     trustLevel?: number;
   }): Promise<DaemonWithLineage> {
+    for (const reference of [data.parentId, data.creatorId]) {
+      if (reference) {
+        const owned = await db.daemon.findFirst({ where: { id: reference, userId }, select: { id: true } });
+        if (!owned) throw new Error('Referenced daemon not found');
+      }
+    }
     const daemon = await db.daemon.create({
       data: {
         userId,
@@ -293,6 +305,10 @@ export class Keeper {
     conditions?: Record<string, any>;
     scope?: PolicyScope;
   }): Promise<PolicyWithDaemon> {
+    if (data.daemonId) {
+      const daemon = await db.daemon.findFirst({ where: { id: data.daemonId, userId }, select: { id: true } });
+      if (!daemon) throw new Error('Referenced daemon not found');
+    }
     const policy = await db.accessPolicy.create({
       data: {
         userId,
@@ -363,6 +379,14 @@ export class Keeper {
     ttlMinutes?: number;
     reason?: string;
   }): Promise<AccessPassView> {
+    if (data.daemonId) {
+      const daemon = await db.daemon.findFirst({ where: { id: data.daemonId, userId }, select: { id: true } });
+      if (!daemon) throw new Error('Referenced daemon not found');
+    }
+    if (data.policyId) {
+      const policy = await db.accessPolicy.findFirst({ where: { id: data.policyId, userId }, select: { id: true } });
+      if (!policy) throw new Error('Referenced policy not found');
+    }
     const token = `aruk_${randomBytes(24).toString('hex')}`;
     const ttlMs = (data.ttlMinutes ?? 60) * 60 * 1000;
 
@@ -400,7 +424,7 @@ export class Keeper {
     });
   }
 
-  async usePass(token: string): Promise<GateDecision> {
+  async usePass(token: string, expected?: PassConstraint): Promise<GateDecision> {
     const pass = await db.accessPass.findUnique({
       where: { token },
       include: { daemon: true, policy: true },
@@ -412,6 +436,14 @@ export class Keeper {
     if (new Date() > pass.expiresAt) {
       await db.accessPass.update({ where: { id: pass.id }, data: { status: 'expired' } });
       return { allowed: false, reason: 'Pass has expired' };
+    }
+    if (expected) {
+      const resourceMatches = pass.resourceType === expected.resourceType &&
+        (!pass.resourceId || pass.resourceId === expected.resourceId);
+      const scopeMatches = pass.scope === expected.scope || pass.scope === 'admin';
+      if (!resourceMatches || !scopeMatches) {
+        return { allowed: false, reason: 'Pass is not valid for this resource or scope' };
+      }
     }
     if (pass.maxUses && pass.usedCount >= pass.maxUses) {
       await db.accessPass.update({ where: { id: pass.id }, data: { status: 'consumed' } });
@@ -493,7 +525,7 @@ export class Keeper {
 
     const [events, total] = await Promise.all([
       db.auditEvent.findMany({
-        where, include: { pass: { select: { token: true } } },
+        where,
         orderBy: { createdAt: 'desc' },
         skip: (page - 1) * perPage, take: perPage,
       }),
@@ -801,7 +833,7 @@ export class Keeper {
     return {
       id: e.id, actorName: e.actorName, actorRole: e.actorRole,
       action: e.action, resourceType: e.resourceType, resourceId: e.resourceId,
-      passToken: e.pass?.token || null, reason: e.reason, outcome: e.outcome,
+      passToken: null, reason: e.reason, outcome: e.outcome,
       details, ipAddress: e.ipAddress, createdAt: e.createdAt,
     };
   }

@@ -35,7 +35,7 @@ async function checkGate(req: NextRequest, userId: string, resourceType: string,
 
   // If a pass token is provided, validate it first
   if (passToken) {
-    const passDecision = await keeper.usePass(passToken);
+    const passDecision = await keeper.usePass(passToken, { resourceType, resourceId, scope });
     if (!passDecision.allowed) {
       return { allowed: false, reason: passDecision.reason, actorName };
     }
@@ -87,8 +87,8 @@ export async function GET(req: NextRequest) {
     const decision = accountId
       ? await apiBank.getKeyForAccount(user.id, accountId, strategy)
       : provider
-        ? await apiBank.routeForProvider(provider, strategy, user.id)
-        : await apiBank.route(strategy, user.id);
+        ? await apiBank.routeForProvider(provider, user.id, strategy)
+        : await apiBank.route(user.id, strategy);
 
     const payload = {
       ...decision,
@@ -142,8 +142,8 @@ export async function POST(req: NextRequest) {
           decision = await apiBank.getKeyForAccount(user.id, body.accountId as string, strategy);
         } else {
           decision = body.provider
-            ? await apiBank.routeForProvider(body.provider as string, strategy, user.id)
-            : await apiBank.route(strategy, user.id);
+            ? await apiBank.routeForProvider(body.provider as string, user.id, strategy)
+            : await apiBank.route(user.id, strategy);
         }
 
         return NextResponse.json(envelope({
@@ -224,7 +224,7 @@ export async function POST(req: NextRequest) {
         if (!body.id) {
           return errorEnvelope('id (accountId) is required', 400);
         }
-        await apiBank.logUsage({
+        await apiBank.logUsage(user.id, {
           accountId: body.id as string,
           endpoint: '/v1/chat/completions',
           status: 'success',

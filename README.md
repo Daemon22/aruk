@@ -9,6 +9,29 @@ Any agent or script can ask Aruk for a key or credential without ever knowing wh
 
 See [ARUK_PRODUCTION_READINESS_AUDIT.md](ARUK_PRODUCTION_READINESS_AUDIT.md) for the current release-readiness findings and known blockers.
 
+## Privacy and credential boundary
+
+Aruk is a private, self-hosted Keeper. API keys, OAuth tokens, passwords,
+service-account material, certificates, SSH keys, and cloud-provider
+credentials are encrypted at rest with AES-256-GCM using `ARUK_ENCRYPTION_KEY`.
+Plaintext credentials are released only through an authenticated, policy-gated
+request; ordinary lists, exports, logs, and account metadata never contain
+credential values.
+
+Every account, secret, cloud account, daemon, policy, usage record, and audit
+view is scoped to its owning user. The core `ApiBank`, `SecretVault`, and
+`Keeper` services enforce that scope themselves, so callers cannot bypass
+privacy by omitting a user identifier or guessing another user's record ID.
+Conflicting cookie and bearer identities are rejected. Provider reference data
+may be shared, but provider account metadata remains private to its owner.
+
+Set both `ARUK_SESSION_SECRET` and `ARUK_ENCRYPTION_KEY` explicitly before
+production deployment. Automatic bootstrap is intended for single-machine
+local use; losing the encryption key makes stored credentials unrecoverable,
+and different keys across instances invalidate sessions or prevent decryption.
+Use TLS and a private network or reverse proxy/WAF for network deployments,
+and never put credentials in URLs, source control, exports, or client logs.
+
 ---
 
 ## Architecture
@@ -48,9 +71,9 @@ Aruk follows a four-layer architecture:
 | -------- | --------- | ----- |
 | **Web** | `src/` | Next.js 16, React 19, Prisma, Tailwind CSS, shadcn/ui |
 | **Desktop** | `src-tauri/` | Rust / Tauri v2, bundled Next.js server |
-| **Android** | `android-sdk/android/` | Kotlin, Jetpack Compose, Hilt, Room |
+| **Android** | `android/` | Kotlin, Jetpack Compose, Hilt, Room |
 | **CLI** | `cli/` + `scripts/` | TypeScript (Bun runtime) |
-| **Docker** | `docker/` | Multi-stage build, Caddy reverse proxy |
+| **Docker** | `Dockerfile` + `docker-compose.yml` | Multi-stage build, Caddy reverse proxy |
 
 ---
 
@@ -119,7 +142,20 @@ bun run tauri:build     # Production build (Windows)
 
 ### Android
 
-Open `android-sdk/android/` in Android Studio and run the app. The Android client connects to a remote Aruk instance.
+Open `android/` in Android Studio and run the app. The Android client connects to a remote Aruk instance.
+Debug builds use the debug signer. Release builds use an external signing configuration when
+`ARUK_ANDROID_KEYSTORE`, `ARUK_ANDROID_KEYSTORE_PASSWORD`, `ARUK_ANDROID_KEY_ALIAS`, and
+`ARUK_ANDROID_KEY_PASSWORD` are supplied as Gradle properties or environment variables; otherwise
+the release build remains unsigned. No production signing credentials belong in this repository.
+
+## Release support boundaries
+
+Production-ready surfaces are the root Keeper/security implementation, the authenticated REST API,
+the TypeScript SDK, and the CLI when connected to a configured Aruk instance. The SDK and agent
+plugin are source-integrated APIs in this application repository, not separately published npm
+packages. Docker image creation, native Tauri packaging, and signed Android artifacts depend on
+their respective local toolchains and external credentials. The `web/` directory is a retained
+legacy frontend and is excluded from the canonical build; it is not a production release surface.
 
 ---
 
@@ -128,12 +164,14 @@ Open `android-sdk/android/` in Android Studio and run the app. The Android clien
 ### Key Routing
 
 ```bash
-# Get a key (GET)
-curl "http://localhost:3000/api/agent?strategy=fastest"
+# Get a key (GET; authenticated session or bearer token required)
+curl "http://localhost:3000/api/agent?strategy=fastest" \
+  -H "Authorization: Bearer $ARUK_SESSION_TOKEN"
 
 # Get a key (POST, for agents)
 curl -X POST http://localhost:3000/api/agent \
   -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $ARUK_SESSION_TOKEN" \
   -d '{"action":"get_key","provider":"Anthropic","strategy":"best"}'
 ```
 

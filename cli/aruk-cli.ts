@@ -355,6 +355,11 @@ async function main() {
   const opts = parseOpts();
   const cmd = args.find(a => !a.startsWith('--'));
 
+  if (args.includes('--version') || cmd === 'version') {
+    console.log('Aruk CLI 0.2.1');
+    return;
+  }
+
   if (!cmd || cmd === 'help') {
     console.log(`
   \x1b[1mAruk CLI\x1b[0m — Keeper of secrets and keys

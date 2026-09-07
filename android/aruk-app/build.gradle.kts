@@ -24,6 +24,22 @@ android {
         }
     }
 
+    val releaseStoreFile = providers.gradleProperty("ARUK_ANDROID_KEYSTORE").orElse(providers.environmentVariable("ARUK_ANDROID_KEYSTORE"))
+    val releaseStorePassword = providers.gradleProperty("ARUK_ANDROID_KEYSTORE_PASSWORD").orElse(providers.environmentVariable("ARUK_ANDROID_KEYSTORE_PASSWORD"))
+    val releaseKeyAlias = providers.gradleProperty("ARUK_ANDROID_KEY_ALIAS").orElse(providers.environmentVariable("ARUK_ANDROID_KEY_ALIAS"))
+    val releaseKeyPassword = providers.gradleProperty("ARUK_ANDROID_KEY_PASSWORD").orElse(providers.environmentVariable("ARUK_ANDROID_KEY_PASSWORD"))
+
+    signingConfigs {
+        if (releaseStoreFile.isPresent && releaseStorePassword.isPresent && releaseKeyAlias.isPresent && releaseKeyPassword.isPresent) {
+            create("release") {
+                storeFile = file(releaseStoreFile.get())
+                storePassword = releaseStorePassword.get()
+                keyAlias = releaseKeyAlias.get()
+                keyPassword = releaseKeyPassword.get()
+            }
+        }
+    }
+
     buildTypes {
         debug {
             applicationIdSuffix = ".debug"
@@ -37,7 +53,7 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
-            signingConfig = signingConfigs.getByName("debug") // Replace with release signing in production
+            signingConfig = signingConfigs.findByName("release")
         }
     }
 

@@ -230,6 +230,6 @@ All platforms share:
 ## Pending Items
 
 - Tauri: Generate Aruk-branded .ico for Windows installer (currently uses default Tauri icon)
-- Android: Production keystore signing config (currently debug signing for release)
+- Android: Release signing is external and environment-dependent; no production keystore is stored in the repository
 - Android: Run `gradle wrapper` once to generate `gradle-wrapper.jar`
 - Tauri/Android: Cannot compile in Linux sandbox — needs Windows/Android SDK machine or CI

@@ -64,7 +64,7 @@ The Docker lockfile input was corrected during this task by generating `bun.lock
 
 ### RELEASE BLOCKER / HIGH
 
-- The public SDK accepts `ArukConfig.authToken` and sends `Authorization: Bearer ...`, but server session resolution currently reads only the `aruk_session` cookie. External SDK consumers therefore do not have a documented working bearer-auth contract. This must be resolved or explicitly removed/documented before publication.
+- Resolved in the current working tree: server session resolution accepts the SDK's `Authorization: Bearer ...` contract and rejects conflicting bearer/cookie identities.
 - Build and lint failures are suppressed in Next configuration. A production security boundary should not publish artifacts without an enforced typecheck/lint gate, even though independent typecheck now passes.
 - Root Docker deployment does not set an explicit `ARUK_CORS_ORIGIN`; the application falls back to localhost, which is restrictive but must be configured for deployed browser clients. The stale `docker/` configuration lacks the root bootstrap-secret environment wiring and is unsafe as a publication path.
 
@@ -73,7 +73,7 @@ The Docker lockfile input was corrected during this task by generating `bun.lock
 - Bootstrap secrets are generated and persisted when environment values are absent. This is useful for single-instance desktop use, but production backups, restores, and multi-instance deployments require explicit `ARUK_SESSION_SECRET` and `ARUK_ENCRYPTION_KEY` management.
 - SQLite is the only checked-in database provider and persistence is local-volume based. Operational backup, restore, migration, and concurrent/multi-instance guarantees need to be stated.
 - `ARUK_BYPASS_AUTH` is guarded against production use, but deployment validation should explicitly assert it is false/unset.
-- Rate limiting and abuse controls were not found in the audited API routes. This is a deployment-level risk for internet exposure and should be addressed or explicitly scoped to trusted/private deployments.
+- Rate limiting and abuse controls are still not present in the audited API routes. This remains a deployment-level risk for internet exposure; use a trusted/private network and hardened reverse proxy/WAF until addressed.
 
 ### Positive controls observed
 
@@ -118,8 +118,8 @@ No cross-repository code was changed or imported during this audit.
 
 ## 10. Release Blockers
 
-1. Resolve the SDK bearer-token/server authentication mismatch.
-2. Complete a clean dependency install and remove build-time suppression or add explicit enforced typecheck and lint release gates; clear the root lint failures.
+1. Add API rate limiting or require a hardened trusted-network/reverse-proxy boundary for public exposure.
+2. Complete a clean dependency install and remove build-time suppression or add explicit enforced typecheck and lint release gates; clear the root lint warnings.
 3. Add CI coverage for dependency integrity, Prisma, typecheck, lint, tests, and production build.
 4. Verify the Docker image from a clean Docker-enabled environment.
 
@@ -130,7 +130,7 @@ No cross-repository code was changed or imported during this audit.
 3. Document secret generation, rotation, backup/restore, SQLite limitations, CORS, reverse proxy, and private-network exposure assumptions.
 4. Deprecate and later retire `web/` after explicit asset/UI review; retain only intentionally migrated assets.
 5. Complete Tauri/Android release signing and artifact verification; add CLI smoke tests.
-6. Add rate limiting or document the trusted-network boundary and require a hardened reverse proxy for public exposure.
+6. Add API rate limiting or document the trusted-network boundary and require a hardened reverse proxy for public exposure.
 
 ## 12. Git State
 

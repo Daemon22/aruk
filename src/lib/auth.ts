@@ -88,10 +88,18 @@ export async function getSession(req: Request): Promise<{ id: string; email: str
     } catch { /* ignore */ }
     return DEV_USER;
   }
+  const authorization = req.headers.get('authorization') || '';
+  const bearerToken = /^Bearer\s+([^\s]+)$/i.exec(authorization)?.[1];
   const cookieHeader = req.headers.get('cookie') || '';
-  const match = cookieHeader.match(/aruk_session=([^;]+)/);
-  if (!match) return null;
-  const userId = verifySessionToken(match[1]);
+  const cookieToken = /(?:^|;\s*)aruk_session=([^;]+)/.exec(cookieHeader)?.[1];
+  if (bearerToken && cookieToken) {
+    const bearerUserId = verifySessionToken(bearerToken);
+    const cookieUserId = verifySessionToken(cookieToken);
+    if (!bearerUserId || !cookieUserId || bearerUserId !== cookieUserId) return null;
+  }
+  const token = bearerToken || cookieToken;
+  if (!token) return null;
+  const userId = verifySessionToken(token);
   if (!userId) return null;
   const user = await db.user.findUnique({
     where: { id: userId },

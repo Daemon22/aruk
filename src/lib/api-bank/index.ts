@@ -85,11 +85,10 @@ export class ApiBank {
 
   // ── ACCOUNTS ──────────────────────────────────────────────
 
-  async listAccounts(filter?: { status?: AccountStatus; provider?: string; userId?: string }): Promise<AccountWithProvider[]> {
-    const where: Prisma.ApiAccountWhereInput = {};
+  async listAccounts(filter: { userId: string; status?: AccountStatus; provider?: string }): Promise<AccountWithProvider[]> {
+    const where: Prisma.ApiAccountWhereInput = { userId: filter.userId };
     if (filter?.status) where.status = filter.status;
     if (filter?.provider) where.provider = { name: filter.provider };
-    if (filter?.userId) where.userId = filter.userId;
 
     const accounts = await db.apiAccount.findMany({
       where,
@@ -199,9 +198,11 @@ export class ApiBank {
     healthScore: number;
     notes: string;
   }>): Promise<AccountWithProvider> {
+    const updateData: Record<string, unknown> = { ...data };
+    if (typeof data.apiKey === 'string') updateData.apiKey = encryptSecret(data.apiKey);
     const account = await db.apiAccount.update({
       where: { id, userId },
-      data,
+      data: updateData,
       include: { provider: { select: { name: true, description: true } } },
     });
     return this.enrichAccount(account);
@@ -220,17 +221,17 @@ export class ApiBank {
 
   // ── CREDIT MONITOR ────────────────────────────────────────
 
-  async getCreditMonitor(): Promise<AccountWithProvider[]> {
+  async getCreditMonitor(userId: string): Promise<AccountWithProvider[]> {
     const accounts = await db.apiAccount.findMany({
-      where: { status: { in: ['active', 'backup'] } },
+      where: { userId, status: { in: ['active', 'backup'] } },
       include: { provider: { select: { name: true, description: true } } },
       orderBy: { healthScore: 'desc' },
     });
     return accounts.map(a => this.enrichAccount(a));
   }
 
-  async getCreditsByProvider(userId?: string): Promise<Record<string, { remaining: number; total: number; percent: number; unit: string }>> {
-    const whereBase: Prisma.ApiAccountWhereInput = userId ? { userId } : {};
+  async getCreditsByProvider(userId: string): Promise<Record<string, { remaining: number; total: number; percent: number; unit: string }>> {
+    const whereBase: Prisma.ApiAccountWhereInput = { userId };
     const accounts = await db.apiAccount.findMany({
       where: { ...whereBase, status: { in: ['active', 'backup'] } },
       include: { provider: { select: { name: true, description: true } } },
@@ -258,8 +259,8 @@ export class ApiBank {
 
   // ── SMART ROUTER ──────────────────────────────────────────
 
-  async route(strategy: RoutingStrategy = 'best', userId?: string): Promise<RoutingDecision> {
-    const whereBase: Prisma.ApiAccountWhereInput = userId ? { userId } : {};
+  async route(userId: string, strategy: RoutingStrategy = 'best'): Promise<RoutingDecision> {
+    const whereBase: Prisma.ApiAccountWhereInput = { userId };
     const active = await db.apiAccount.findMany({
       where: { ...whereBase, status: 'active' },
       include: { provider: { select: { name: true, description: true } } },
@@ -320,8 +321,8 @@ export class ApiBank {
     return this.buildDecision(account, strategy, 'Explicit account selected by authorized caller');
   }
 
-  async routeForProvider(providerName: string, strategy: RoutingStrategy = 'best', userId?: string): Promise<RoutingDecision> {
-    const whereBase: Prisma.ApiAccountWhereInput = userId ? { userId } : {};
+  async routeForProvider(providerName: string, userId: string, strategy: RoutingStrategy = 'best'): Promise<RoutingDecision> {
+    const whereBase: Prisma.ApiAccountWhereInput = { userId };
     const active = await db.apiAccount.findMany({
       where: { ...whereBase, status: 'active', provider: { name: providerName } },
       include: { provider: { select: { name: true, description: true } } },
@@ -350,8 +351,8 @@ export class ApiBank {
 
   // ── FAILOVER CHAIN ────────────────────────────────────────
 
-  async getFailoverChain(userId?: string): Promise<AccountWithProvider[]> {
-    const whereBase: Prisma.ApiAccountWhereInput = userId ? { userId } : {};
+  async getFailoverChain(userId: string): Promise<AccountWithProvider[]> {
+    const whereBase: Prisma.ApiAccountWhereInput = { userId };
     const accounts = await db.apiAccount.findMany({
       where: { ...whereBase, status: { in: ['active', 'backup'] } },
       include: { provider: { select: { name: true, description: true } } },
@@ -362,9 +363,9 @@ export class ApiBank {
 
   // ── STATS & ANALYTICS ─────────────────────────────────────
 
-  async getStats(userId?: string): Promise<BankStats> {
+  async getStats(userId: string): Promise<BankStats> {
     const all = await db.apiAccount.findMany({
-      where: userId ? { userId } : {},
+      where: { userId },
       include: { provider: { select: { name: true } } },
     });
 
@@ -477,7 +478,7 @@ export class ApiBank {
     return { events, total };
   }
 
-  async logUsage(data: {
+  async logUsage(userId: string, data: {
     accountId: string;
     endpoint: string;
     model?: string;
@@ -488,6 +489,8 @@ export class ApiBank {
     status?: string;
     errorMessage?: string;
   }): Promise<void> {
+    const account = await db.apiAccount.findFirst({ where: { id: data.accountId, userId }, select: { id: true } });
+    if (!account) throw new Error('API account not found');
     await db.usageLog.create({ data });
   }
 
@@ -502,10 +505,11 @@ export class ApiBank {
 
   // ── PROVIDERS ─────────────────────────────────────────────
 
-  async listProviders() {
+  async listProviders(userId: string) {
     return db.provider.findMany({
       include: {
         accounts: {
+          where: { userId },
           select: {
             id: true, name: true, status: true, healthScore: true,
             totalCredits: true, usedCredits: true, creditUnit: true,
@@ -634,9 +638,8 @@ export interface SecretEntry {
 export class SecretVault {
   // ── CRUD ────────────────────────────────────────────────
 
-  async list(filter?: { type?: SecretType; provider?: string; purpose?: SecretPurpose; status?: string; userId?: string }): Promise<SecretEntry[]> {
-    const where: any = {};
-    if (filter?.userId) where.userId = filter.userId;
+  async list(filter: { userId: string; type?: SecretType; provider?: string; purpose?: SecretPurpose; status?: string }): Promise<SecretEntry[]> {
+    const where: any = { userId: filter.userId };
     if (filter?.type) where.type = filter.type;
     if (filter?.provider) where.provider = filter.provider;
     if (filter?.purpose) where.purpose = filter.purpose;
@@ -650,24 +653,20 @@ export class SecretVault {
     return secrets.map(this.enrich);
   }
 
-  async get(id: string, userId?: string): Promise<SecretEntry | null> {
-    const secret = userId
-      ? await db.secret.findUnique({ where: { id, userId } })
-      : await db.secret.findUnique({ where: { id } });
+  async get(id: string, userId: string): Promise<SecretEntry | null> {
+    const secret = await db.secret.findFirst({ where: { id, userId } });
     return secret ? this.enrich(secret) : null;
   }
 
-  async getByName(name: string, provider?: string, userId?: string): Promise<SecretEntry | null> {
-    const where: any = { name, status: 'active' };
-    if (userId) where.userId = userId;
+  async getByName(name: string, provider: string | undefined, userId: string): Promise<SecretEntry | null> {
+    const where: any = { name, status: 'active', userId };
     if (provider) where.provider = provider;
     const secret = await db.secret.findFirst({ where, orderBy: { lastUsedAt: 'asc' } });
     return secret ? this.enrich(secret) : null;
   }
 
-  async getByPurpose(purpose: SecretPurpose, provider?: string, userId?: string): Promise<SecretEntry | null> {
-    const where: any = { purpose, status: 'active' };
-    if (userId) where.userId = userId;
+  async getByPurpose(purpose: SecretPurpose, provider: string | undefined, userId: string): Promise<SecretEntry | null> {
+    const where: any = { purpose, status: 'active', userId };
     if (provider) where.provider = provider;
     const secret = await db.secret.findFirst({ where, orderBy: { lastUsedAt: 'asc' } });
     return secret ? this.enrich(secret) : null;
@@ -720,18 +719,14 @@ export class SecretVault {
     await db.secret.delete({ where: { id, userId } });
   }
 
-  async touch(id: string, userId?: string): Promise<void> {
-    if (userId) {
-      await db.secret.update({ where: { id, userId }, data: { lastUsedAt: new Date() } });
-    } else {
-      await db.secret.update({ where: { id }, data: { lastUsedAt: new Date() } });
-    }
+  async touch(id: string, userId: string): Promise<void> {
+    await db.secret.update({ where: { id, userId }, data: { lastUsedAt: new Date() } });
   }
 
   // ── Stats ──────────────────────────────────────────────
 
-  async stats(userId?: string): Promise<{ total: number; byType: Record<string, number>; byPurpose: Record<string, number>; byProvider: Record<string, number> }> {
-    const all = await db.secret.findMany({ where: userId ? { userId } : undefined });
+  async stats(userId: string): Promise<{ total: number; byType: Record<string, number>; byPurpose: Record<string, number>; byProvider: Record<string, number> }> {
+    const all = await db.secret.findMany({ where: { userId } });
     const byType: Record<string, number> = {};
     const byPurpose: Record<string, number> = {};
     const byProvider: Record<string, number> = {};
