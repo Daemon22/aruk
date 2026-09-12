@@ -31,7 +31,11 @@ export async function POST(req: NextRequest) {
 
   for (let i = 0; i < count; i++) {
     try {
+<<<<<<< HEAD
       const decision = await apiBank.route(user.id, strategy);
+=======
+      const decision = await apiBank.route(strategy, user.id);
+>>>>>>> 193e563eec90177528092e21ed6ea88aad226193
 
       const success = Math.random() < 0.9;
       const latency = randInt(100, 3000);
@@ -39,7 +43,11 @@ export async function POST(req: NextRequest) {
       const outputTokens = randInt(200, 1500);
       const cost = Math.round(((inputTokens + outputTokens) / 1_000_000 * randInt(2, 15)) * 10_000) / 10_000;
 
+<<<<<<< HEAD
       await apiBank.logUsage(user.id, {
+=======
+      await apiBank.logUsage({
+>>>>>>> 193e563eec90177528092e21ed6ea88aad226193
         accountId: decision.accountId,
         endpoint: '/v1/chat/completions',
         model: 'gpt-4o-mini',

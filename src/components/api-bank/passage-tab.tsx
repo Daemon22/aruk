@@ -23,7 +23,11 @@ interface PassageLog {
   createdAt: string;
 }
 
+<<<<<<< HEAD
 interface CloudAccount { id: string; name: string; provider: string; status: string; }
+=======
+interface CloudAccount { id: string; name: string; provider: string; }
+>>>>>>> 193e563eec90177528092e21ed6ea88aad226193
 
 function formatBytes(bytes: number): string {
   if (bytes === 0) return '—';

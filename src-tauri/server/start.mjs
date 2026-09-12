@@ -12,7 +12,11 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 // Ensure SQLite data directory exists
 const dbUrl = process.env.DATABASE_URL || '';
 if (dbUrl.startsWith('file:')) {
+<<<<<<< HEAD
   const dbPath = dbUrl.replace('file:', '').replace('/aruk.db', '').replace(/\\/g, '/');
+=======
+  const dbPath = dbUrl.replace('file:', '').replace('/aruk.db', '').replace(/\/g, '/');
+>>>>>>> 193e563eec90177528092e21ed6ea88aad226193
   if (dbPath && !existsSync(dbPath)) {
     mkdirSync(dbPath, { recursive: true });
     console.log('[aruk] Created data directory: ' + dbPath);

@@ -19,7 +19,10 @@ const eslintConfig = [...nextCoreWebVitals, ...nextTypescript, {
     // React rules
     "react-hooks/exhaustive-deps": "off",
     "react-hooks/purity": "off",
+<<<<<<< HEAD
     "react-hooks/set-state-in-effect": "off",
+=======
+>>>>>>> 193e563eec90177528092e21ed6ea88aad226193
     "react/no-unescaped-entities": "off",
     "react/display-name": "off",
     "react/prop-types": "off",
@@ -45,12 +48,16 @@ const eslintConfig = [...nextCoreWebVitals, ...nextTypescript, {
     "no-useless-escape": "off",
   },
 }, {
+<<<<<<< HEAD
   files: ["**/*.cjs"],
   rules: {
     "@typescript-eslint/no-require-imports": "off",
   },
 }, {
   ignores: ["node_modules/**", ".next/**", "out/**", "build/**", "next-env.d.ts", "examples/**", "skills/**", "web/**"]
+=======
+  ignores: ["node_modules/**", ".next/**", "out/**", "build/**", "next-env.d.ts", "examples/**", "skills"]
+>>>>>>> 193e563eec90177528092e21ed6ea88aad226193
 }];
 
 export default eslintConfig;

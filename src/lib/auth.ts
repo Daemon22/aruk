@@ -88,6 +88,7 @@ export async function getSession(req: Request): Promise<{ id: string; email: str
     } catch { /* ignore */ }
     return DEV_USER;
   }
+<<<<<<< HEAD
   const authorization = req.headers.get('authorization') || '';
   const bearerToken = /^Bearer\s+([^\s]+)$/i.exec(authorization)?.[1];
   const cookieHeader = req.headers.get('cookie') || '';
@@ -100,6 +101,12 @@ export async function getSession(req: Request): Promise<{ id: string; email: str
   const token = bearerToken || cookieToken;
   if (!token) return null;
   const userId = verifySessionToken(token);
+=======
+  const cookieHeader = req.headers.get('cookie') || '';
+  const match = cookieHeader.match(/aruk_session=([^;]+)/);
+  if (!match) return null;
+  const userId = verifySessionToken(match[1]);
+>>>>>>> 193e563eec90177528092e21ed6ea88aad226193
   if (!userId) return null;
   const user = await db.user.findUnique({
     where: { id: userId },

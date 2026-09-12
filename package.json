@@ -5,11 +5,18 @@
   "description": "Aruk — The immovable protective perimeter",
   "scripts": {
     "dev": "next dev -p 3000",
+<<<<<<< HEAD
     "test": "tsx scripts/test-crypto.ts && tsx scripts/test-secret-bootstrap.ts && node scripts/test-security-hardening.cjs",
     "build": "next build --webpack && node scripts/copy-build-assets.mjs",
     "start": "NODE_ENV=production bun .next/standalone/server.js",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
+=======
+    "test": "tsx scripts/test-crypto.ts && tsx scripts/test-secret-bootstrap.ts",
+    "build": "next build && cp -r .next/static .next/standalone/.next/ && cp -r public .next/standalone/",
+    "start": "NODE_ENV=production bun .next/standalone/server.js",
+    "lint": "eslint .",
+>>>>>>> 193e563eec90177528092e21ed6ea88aad226193
     "db:push": "prisma db push",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",

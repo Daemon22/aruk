@@ -12,10 +12,17 @@ export async function GET(req: NextRequest) {
 
   try {
     if (provider) {
+<<<<<<< HEAD
       const decision = await apiBank.routeForProvider(provider, user.id, strategy);
       return NextResponse.json(decision);
     }
     const decision = await apiBank.route(user.id, strategy);
+=======
+      const decision = await apiBank.routeForProvider(provider, strategy, user.id);
+      return NextResponse.json(decision);
+    }
+    const decision = await apiBank.route(strategy, user.id);
+>>>>>>> 193e563eec90177528092e21ed6ea88aad226193
     return NextResponse.json(decision);
   } catch (e: any) {
     return NextResponse.json({ error: e.message }, { status: 503 });

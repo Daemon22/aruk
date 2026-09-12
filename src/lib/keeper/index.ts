@@ -124,12 +124,15 @@ export interface GateDecision {
   daemonId?: string | null;
 }
 
+<<<<<<< HEAD
 export interface PassConstraint {
   resourceType: string;
   resourceId?: string;
   scope: string;
 }
 
+=======
+>>>>>>> 193e563eec90177528092e21ed6ea88aad226193
 export interface PassageLogView {
   id: string;
   cloudAccountId: string;
@@ -204,12 +207,15 @@ export class Keeper {
     capabilities?: string[];
     trustLevel?: number;
   }): Promise<DaemonWithLineage> {
+<<<<<<< HEAD
     for (const reference of [data.parentId, data.creatorId]) {
       if (reference) {
         const owned = await db.daemon.findFirst({ where: { id: reference, userId }, select: { id: true } });
         if (!owned) throw new Error('Referenced daemon not found');
       }
     }
+=======
+>>>>>>> 193e563eec90177528092e21ed6ea88aad226193
     const daemon = await db.daemon.create({
       data: {
         userId,
@@ -305,10 +311,13 @@ export class Keeper {
     conditions?: Record<string, any>;
     scope?: PolicyScope;
   }): Promise<PolicyWithDaemon> {
+<<<<<<< HEAD
     if (data.daemonId) {
       const daemon = await db.daemon.findFirst({ where: { id: data.daemonId, userId }, select: { id: true } });
       if (!daemon) throw new Error('Referenced daemon not found');
     }
+=======
+>>>>>>> 193e563eec90177528092e21ed6ea88aad226193
     const policy = await db.accessPolicy.create({
       data: {
         userId,
@@ -379,6 +388,7 @@ export class Keeper {
     ttlMinutes?: number;
     reason?: string;
   }): Promise<AccessPassView> {
+<<<<<<< HEAD
     if (data.daemonId) {
       const daemon = await db.daemon.findFirst({ where: { id: data.daemonId, userId }, select: { id: true } });
       if (!daemon) throw new Error('Referenced daemon not found');
@@ -387,6 +397,8 @@ export class Keeper {
       const policy = await db.accessPolicy.findFirst({ where: { id: data.policyId, userId }, select: { id: true } });
       if (!policy) throw new Error('Referenced policy not found');
     }
+=======
+>>>>>>> 193e563eec90177528092e21ed6ea88aad226193
     const token = `aruk_${randomBytes(24).toString('hex')}`;
     const ttlMs = (data.ttlMinutes ?? 60) * 60 * 1000;
 
@@ -424,7 +436,11 @@ export class Keeper {
     });
   }
 
+<<<<<<< HEAD
   async usePass(token: string, expected?: PassConstraint): Promise<GateDecision> {
+=======
+  async usePass(token: string): Promise<GateDecision> {
+>>>>>>> 193e563eec90177528092e21ed6ea88aad226193
     const pass = await db.accessPass.findUnique({
       where: { token },
       include: { daemon: true, policy: true },
@@ -437,6 +453,7 @@ export class Keeper {
       await db.accessPass.update({ where: { id: pass.id }, data: { status: 'expired' } });
       return { allowed: false, reason: 'Pass has expired' };
     }
+<<<<<<< HEAD
     if (expected) {
       const resourceMatches = pass.resourceType === expected.resourceType &&
         (!pass.resourceId || pass.resourceId === expected.resourceId);
@@ -445,6 +462,8 @@ export class Keeper {
         return { allowed: false, reason: 'Pass is not valid for this resource or scope' };
       }
     }
+=======
+>>>>>>> 193e563eec90177528092e21ed6ea88aad226193
     if (pass.maxUses && pass.usedCount >= pass.maxUses) {
       await db.accessPass.update({ where: { id: pass.id }, data: { status: 'consumed' } });
       return { allowed: false, reason: 'Pass usage limit reached' };
@@ -465,12 +484,16 @@ export class Keeper {
     const where: any = { userId };
     if (filter?.direction) where.direction = filter.direction;
     if (filter?.status) where.status = filter.status;
+<<<<<<< HEAD
     const rules = await db.passageRule.findMany({ where, orderBy: { priority: 'desc' } });
     return rules.map(rule => ({
       ...rule,
       direction: rule.direction as PassageDirection,
       action: rule.action as PassageAction,
     }));
+=======
+    return db.passageRule.findMany({ where, orderBy: { priority: 'desc' } });
+>>>>>>> 193e563eec90177528092e21ed6ea88aad226193
   }
 
   async createPassageRule(userId: string, data: {
@@ -478,7 +501,11 @@ export class Keeper {
     dataType: string; pattern?: string; action: PassageAction;
     daemonRole?: string; resourceType?: string; priority?: number;
   }): Promise<PassageRuleView> {
+<<<<<<< HEAD
     const rule = await db.passageRule.create({
+=======
+    return db.passageRule.create({
+>>>>>>> 193e563eec90177528092e21ed6ea88aad226193
       data: {
         userId,
         name: data.name, direction: data.direction,
@@ -488,11 +515,14 @@ export class Keeper {
         priority: data.priority ?? 0,
       },
     });
+<<<<<<< HEAD
     return {
       ...rule,
       direction: rule.direction as PassageDirection,
       action: rule.action as PassageAction,
     };
+=======
+>>>>>>> 193e563eec90177528092e21ed6ea88aad226193
   }
 
   async updatePassageRule(userId: string, id: string, data: Partial<{
@@ -500,12 +530,16 @@ export class Keeper {
     dataType: string; pattern: string; action: PassageAction;
     daemonRole: string; resourceType: string; priority: number; status: string;
   }>): Promise<PassageRuleView> {
+<<<<<<< HEAD
     const rule = await db.passageRule.update({ where: { id, userId }, data });
     return {
       ...rule,
       direction: rule.direction as PassageDirection,
       action: rule.action as PassageAction,
     };
+=======
+    return db.passageRule.update({ where: { id, userId }, data });
+>>>>>>> 193e563eec90177528092e21ed6ea88aad226193
   }
 
   async deletePassageRule(userId: string, id: string): Promise<void> {
@@ -525,7 +559,11 @@ export class Keeper {
 
     const [events, total] = await Promise.all([
       db.auditEvent.findMany({
+<<<<<<< HEAD
         where,
+=======
+        where, include: { pass: { select: { token: true } } },
+>>>>>>> 193e563eec90177528092e21ed6ea88aad226193
         orderBy: { createdAt: 'desc' },
         skip: (page - 1) * perPage, take: perPage,
       }),
@@ -833,7 +871,11 @@ export class Keeper {
     return {
       id: e.id, actorName: e.actorName, actorRole: e.actorRole,
       action: e.action, resourceType: e.resourceType, resourceId: e.resourceId,
+<<<<<<< HEAD
       passToken: null, reason: e.reason, outcome: e.outcome,
+=======
+      passToken: e.pass?.token || null, reason: e.reason, outcome: e.outcome,
+>>>>>>> 193e563eec90177528092e21ed6ea88aad226193
       details, ipAddress: e.ipAddress, createdAt: e.createdAt,
     };
   }

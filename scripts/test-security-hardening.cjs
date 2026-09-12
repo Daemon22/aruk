@@ -14,7 +14,10 @@ const keeper = read('src/lib/keeper/index.ts');
 const secrets = read('src/app/api/secrets/route.ts');
 const offload = read('src/app/api/offload/route.ts');
 const auth = read('src/lib/auth.ts');
+<<<<<<< HEAD
 const health = read('src/app/api/health/route.ts');
+=======
+>>>>>>> 193e563eec90177528092e21ed6ea88aad226193
 const nextConfig = read('next.config.ts');
 
 assert(apiBank.includes('apiKey: encryptSecret(data.apiKey)'), 'new API keys are encrypted before database storage');
@@ -22,7 +25,10 @@ assert(apiBank.includes('apiKey: encryptSecret(key)'), 'batch API keys are encry
 assert(apiBank.includes('decryptSecret(account.apiKey)'), 'routed API keys are decrypted only inside the bank');
 assert(apiBank.includes('private async migrateLegacyApiKey'), 'legacy plaintext API keys have a migration path');
 assert(apiBank.includes('async getKeyForAccount'), 'specific API accounts can be released through the bank');
+<<<<<<< HEAD
 assert(apiBank.includes('if (typeof data.apiKey === \'string\') updateData.apiKey = encryptSecret(data.apiKey)'), 'API key replacements are encrypted before update');
+=======
+>>>>>>> 193e563eec90177528092e21ed6ea88aad226193
 assert(exportRoute.includes('const safeAccounts = accounts.map(({ apiKey:'), 'JSON export explicitly strips API key field');
 assert(agent.includes("'get_cloud_credentials'"), 'agents can request non-API-key cloud credentials');
 assert(agent.includes("checkGate(req, user.id, 'secret', 'read', body.id"), 'specific secrets can be policy-gated by resource ID');
@@ -35,6 +41,7 @@ assert(secrets.includes("body.action === 'reveal'"), 'human vault reveal is expl
 assert(offload.includes('resourceId: cloudAccountId'), 'direct offload API passes cloud account identity into policy evaluation');
 assert(auth.includes("ARUK_BYPASS_AUTH must not be enabled in production"), 'auth bypass fails closed in production');
 assert(nextConfig.includes('ARUK_CORS_ORIGIN'), 'CORS is no longer wildcard by default');
+<<<<<<< HEAD
 assert(nextConfig.includes('X-Aruk-Pass, X-Aruk-Actor, X-Aruk-Role'), 'CORS allows agent gate headers');
 assert(auth.includes("req.headers.get('authorization')"), 'API sessions accept the SDK authorization header');
 assert(auth.includes("/^Bearer\\s+([^\\s]+)$/i"), 'bearer authentication uses strict token parsing');
@@ -50,6 +57,8 @@ assert(keeper.includes('expected?: PassConstraint'), 'passes can be constrained 
 assert(agent.includes('keeper.usePass(passToken, { resourceType, resourceId, scope })'), 'agent gates bind passes to resource and scope');
 assert(offload.includes("keeper.usePass(passToken, { resourceType: 'cloud_account', resourceId: cloudAccountId, scope })"), 'offload gates bind passes to cloud account and scope');
 assert(keeper.includes('passToken: null'), 'audit views do not expose bearer pass tokens');
+=======
+>>>>>>> 193e563eec90177528092e21ed6ea88aad226193
 
 console.log('\nSecurity hardening contract checks passed.');
 

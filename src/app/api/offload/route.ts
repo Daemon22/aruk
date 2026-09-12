@@ -8,7 +8,11 @@ async function checkOffloadGate(userId: string, req: NextRequest, cloudAccountId
   const actorRole = req.headers.get('x-aruk-role') || undefined;
   let daemonId: string | undefined;
   if (passToken) {
+<<<<<<< HEAD
     const pass = await keeper.usePass(passToken, { resourceType: 'cloud_account', resourceId: cloudAccountId, scope });
+=======
+    const pass = await keeper.usePass(passToken);
+>>>>>>> 193e563eec90177528092e21ed6ea88aad226193
     if (!pass.allowed) return { allowed: false, reason: pass.reason };
     daemonId = pass.daemonId || undefined;
   }
