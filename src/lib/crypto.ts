@@ -14,7 +14,7 @@
 // ============================================================
 
 import { createCipheriv, createDecipheriv, randomBytes, scryptSync } from 'crypto';
-import { resolveOrPersistSecret } from '@/lib/secret-bootstrap';
+import { resolveOrPersistSecret } from './secret-bootstrap';
 
 const PREFIX = 'enc:v1:';
 

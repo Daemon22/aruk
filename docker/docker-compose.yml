@@ -16,7 +16,7 @@ services:
     ports:
       - "${PORT:-3000}:3000"
     environment:
-      - DATABASE_URL=file:/app/data/aruk.db
+      - DATABASE_URL=${DATABASE_URL:-file:/app/data/aruk.db}
       - APIBANK_URL=http://localhost:3000
       - NEXT_TELEMETRY_DISABLED=1
     volumes:
