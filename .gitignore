@@ -37,6 +37,7 @@ yarn-error.log*
 # local SQLite database
 /db/*.db
 /db/*.db-journal
+/prisma/data/*.db
 /data/
 
 # secrets Aruk auto-generates and persists on first run
