@@ -15,6 +15,7 @@ const secrets = read('src/app/api/secrets/route.ts');
 const offload = read('src/app/api/offload/route.ts');
 const auth = read('src/lib/auth.ts');
 const health = read('src/app/api/health/route.ts');
+const authRoute = read('src/app/api/auth/route.ts');
 const nextConfig = read('next.config.ts');
 
 assert(apiBank.includes('apiKey: encryptSecret(data.apiKey)'), 'new API keys are encrypted before database storage');
@@ -40,6 +41,10 @@ assert(auth.includes("req.headers.get('authorization')"), 'API sessions accept t
 assert(auth.includes("/^Bearer\\s+([^\\s]+)$/i"), 'bearer authentication uses strict token parsing');
 assert(auth.includes("aruk_session=([^;]+)"), 'cookie session authentication remains supported');
 assert(auth.includes('bearerUserId !== cookieUserId'), 'conflicting bearer and cookie identities are rejected');
+assert(authRoute.includes("body.action === 'sign_out'"), 'human sign out clears the session cookie');
+assert(authRoute.includes("body.action === 'register'"), 'human registration uses the server auth boundary');
+assert(authRoute.includes("body.action !== 'sign_in'"), 'human sign in rejects unknown auth actions');
+assert(authRoute.includes('sessionCookie(createSessionToken(user.id))'), 'successful auth establishes a signed session cookie');
 assert(apiBank.includes('async listProviders(userId: string)'), 'provider metadata listing requires a user scope');
 assert(apiBank.includes('where: { id: data.accountId, userId }'), 'usage writes verify account ownership');
 assert(apiBank.includes('async get(id: string, userId: string)'), 'secret retrieval requires a user scope');

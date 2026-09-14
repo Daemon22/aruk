@@ -3,9 +3,21 @@
   "version": "1.0.0",
   "private": true,
   "description": "Aruk — The immovable protective perimeter",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Daemon22/aruk.git"
+  },
+  "homepage": "https://github.com/Daemon22/aruk",
+  "bugs": {
+    "url": "https://github.com/Daemon22/aruk/issues"
+  },
+  "engines": {
+    "bun": "1.3.14"
+  },
   "scripts": {
     "dev": "next dev -p 3000",
-    "test": "tsx scripts/test-crypto.ts && tsx scripts/test-secret-bootstrap.ts && node scripts/test-security-hardening.cjs",
+    "test": "tsx scripts/test-crypto.ts && tsx scripts/test-secret-bootstrap.ts && tsx scripts/test-auth.ts && node scripts/test-security-hardening.cjs",
     "build": "next build --webpack && node scripts/copy-build-assets.mjs",
     "start": "NODE_ENV=production bun .next/standalone/server.js",
     "lint": "eslint .",

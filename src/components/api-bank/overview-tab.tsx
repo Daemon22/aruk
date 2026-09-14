@@ -54,28 +54,44 @@ export function OverviewTab({ refreshKey }: { refreshKey: number }) {
   const [recentEvents, setRecentEvents] = useState<AuditEntry[]>([]);
   const [cloudAccountCount, setCloudAccountCount] = useState(0);
   const [passageStats, setPassageStats] = useState<PassageStats | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
+    setLoading(true);
+    setError(null);
+    const readJson = async <T,>(path: string): Promise<T> => {
+      const response = await fetch(path, { cache: "no-store" });
+      const payload = await response.json().catch(() => null);
+      if (!response.ok) {
+        throw new Error(typeof payload?.error === "string" ? payload.error : `Request failed (${response.status})`);
+      }
+      return payload as T;
+    };
     Promise.all([
-      fetch('/api/daemons').then(r => r.json()).catch(() => []),
-      fetch('/api/passes?status=active').then(r => r.json()).catch(() => []),
-      fetch('/api/policies').then(r => r.json()).catch(() => []),
-      fetch('/api/perimeter').then(r => r.json()).catch(() => []),
-      fetch('/api/audit?stats=true').then(r => r.json()).catch(() => null),
-      fetch('/api/audit?perPage=8').then(r => r.json()).catch(() => ({ events: [] })),
-      fetch('/api/cloud-accounts').then(r => r.json()).catch(() => ({ data: [] })),
-      fetch('/api/offload?stats=true').then(r => r.json()).catch(() => null),
+      readJson<any[]>('/api/daemons'),
+      readJson<any[]>('/api/passes?status=active'),
+      readJson<any[]>('/api/policies'),
+      readJson<any[]>('/api/perimeter'),
+      readJson<AuditStats>('/api/audit?stats=true'),
+      readJson<{ events: AuditEntry[] }>('/api/audit?perPage=8'),
+      readJson<{ data: any[] }>('/api/cloud-accounts'),
+      readJson<{ data: PassageStats }>('/api/offload?stats=true'),
     ]).then(([daemons, passes, policies, rules, audit, events, clouds, passage]) => {
       if (!cancelled) {
         setDaemonCount(daemons.filter((d: any) => d.status === 'active').length);
         setActivePasses(passes.length);
         setPolicyCount(policies.length);
         setPerimeterRules(rules.filter((r: any) => r.status === 'active').length);
-        if (audit) setAuditStats(audit);
-        setRecentEvents(events.events || []);
-        setCloudAccountCount((clouds.data || []).filter((c: any) => c.status === 'active').length);
-        if (passage?.data) setPassageStats(passage.data);
+        setAuditStats(audit);
+        setRecentEvents(events.events);
+        setCloudAccountCount(clouds.data.filter((c: any) => c.status === 'active').length);
+        setPassageStats(passage.data);
+        setLoading(false);
+      }
+    }).catch((loadError: unknown) => {
+      if (!cancelled) {
+        setError(loadError instanceof Error ? loadError.message : "Unable to read Aruk state");
         setLoading(false);
       }
     });
@@ -92,6 +108,20 @@ export function OverviewTab({ refreshKey }: { refreshKey: number }) {
         </div>
         <Skeleton className="h-[200px] rounded-xl" />
       </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <Card className="rounded-xl border-red-500/30 bg-red-500/5">
+        <CardContent className="flex items-center gap-3 p-5">
+          <ShieldAlert className="h-5 w-5 shrink-0 text-red-400" />
+          <div>
+            <p className="text-sm font-medium">Overview unavailable</p>
+            <p className="mt-1 text-xs text-muted-foreground">{error}. No substitute state is being shown.</p>
+          </div>
+        </CardContent>
+      </Card>
     );
   }
 
@@ -124,7 +154,7 @@ export function OverviewTab({ refreshKey }: { refreshKey: number }) {
 
   const allowedPct = auditStats && auditStats.total > 0
     ? Math.round((auditStats.allowed / auditStats.total) * 100)
-    : 100;
+    : null;
 
   return (
     <div className="space-y-5">
@@ -162,18 +192,18 @@ export function OverviewTab({ refreshKey }: { refreshKey: number }) {
             <div>
               <div className="flex items-center justify-between text-xs mb-1.5">
                 <span className="text-muted-foreground">Access decisions</span>
-                <span className={`font-semibold ${allowedPct >= 90 ? 'text-emerald-400' : allowedPct >= 70 ? 'text-amber-400' : 'text-red-400'}`}>
-                  {allowedPct}% allowed
+                <span className={`font-semibold ${allowedPct === null ? 'text-muted-foreground' : allowedPct >= 90 ? 'text-emerald-400' : allowedPct >= 70 ? 'text-amber-400' : 'text-red-400'}`}>
+                  {allowedPct === null ? "No decisions recorded" : `${allowedPct}% allowed`}
                 </span>
               </div>
               <div className="h-2 rounded-full bg-muted/50 overflow-hidden flex">
                 <div
                   className="bg-emerald-500/70 rounded-l-full transition-all duration-700"
-                  style={{ width: `${allowedPct}%` }}
+                  style={{ width: `${allowedPct ?? 0}%` }}
                 />
                 <div
                   className="bg-red-500/70 rounded-r-full transition-all duration-700"
-                  style={{ width: `${100 - allowedPct}%` }}
+                  style={{ width: `${allowedPct === null ? 0 : 100 - allowedPct}%` }}
                 />
               </div>
             </div>

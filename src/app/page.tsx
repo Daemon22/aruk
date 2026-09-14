@@ -18,6 +18,8 @@ import {
   Cloud,
   ArrowRightLeft,
   User,
+  LogOut,
+  Loader2,
 } from "lucide-react";
 
 import { OverviewTab } from "@/components/api-bank/overview-tab";
@@ -29,6 +31,9 @@ import { AuditTab } from "@/components/api-bank/audit-tab";
 import { PerimeterTab } from "@/components/api-bank/perimeter-tab";
 import { CloudsTab } from "@/components/api-bank/clouds-tab";
 import { PassageTab } from "@/components/api-bank/passage-tab";
+import { SystemStatus } from "@/components/system-status";
+import { AuthScreen } from "@/components/auth-screen";
+import type { SessionStatus } from "@/lib/ui-contracts";
 
 const TAB_KEYS = [
   "overview",
@@ -56,7 +61,10 @@ const TAB_CONFIG = [
 
 export default function Home() {
   const { theme, setTheme } = useTheme();
-  const user = { id: 'dev', email: 'dev@aruk.local', name: 'Dev' };
+  const [sessionState, setSessionState] = useState<"pending" | "success" | "failure">("pending");
+  const [session, setSession] = useState<SessionStatus | null>(null);
+  const [signingOut, setSigningOut] = useState(false);
+  const [signOutError, setSignOutError] = useState<string | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
   const [activeTab, setActiveTab] = useState<string>("overview");
   const [refreshing, setRefreshing] = useState(false);
@@ -65,6 +73,44 @@ export default function Home() {
     setRefreshKey((k) => k + 1);
     setTimeout(() => setRefreshing(false), 600);
   }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/session", { cache: "no-store" })
+      .then(async (response) => {
+        const payload = await response.json();
+        if (!response.ok) throw new Error(payload?.error || `Session request failed (${response.status})`);
+        return payload as SessionStatus;
+      })
+      .then((payload) => {
+        if (!cancelled) {
+          setSession(payload);
+          setSessionState("success");
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setSessionState("failure");
+      });
+    return () => { cancelled = true; };
+  }, []);
+
+  const signOut = async () => {
+    setSigningOut(true);
+    setSignOutError(null);
+    try {
+      const response = await fetch("/api/auth", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "sign_out" }),
+      });
+      if (!response.ok) throw new Error("Sign out was rejected by Aruk");
+      setSession({ authenticated: false, user: null });
+    } catch (error) {
+      setSignOutError(error instanceof Error ? error.message : "Sign out failed");
+    } finally {
+      setSigningOut(false);
+    }
+  };
 
   // ── Keyboard shortcuts ──────────────────────────────────────
   useEffect(() => {
@@ -85,6 +131,21 @@ export default function Home() {
   }, [refresh, theme, setTheme]);
 
   // ── Dashboard ───────────────────────────────────────────────
+  if (sessionState === "pending") {
+    return (
+      <main className="flex min-h-screen items-center justify-center bg-background">
+        <Loader2 className="h-5 w-5 animate-spin text-brand" aria-label="Checking Aruk session" />
+      </main>
+    );
+  }
+
+  if (sessionState === "failure" || !session?.authenticated) {
+    return <AuthScreen onAuthenticated={(nextSession) => {
+      setSession(nextSession);
+      setSessionState("success");
+    }} />;
+  }
+
   return (
     <div className="min-h-screen bg-background flex flex-col relative overflow-hidden">
       {/* ── Header ─────────────────────────────────────────────── */}
@@ -108,7 +169,7 @@ export default function Home() {
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
                 <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
               </span>
-              <span className="text-emerald-500">GATE ACTIVE</span>
+              <span className="text-muted-foreground">CORE SURFACE</span>
             </div>
           </div>
 
@@ -124,9 +185,19 @@ export default function Home() {
             {/* User menu */}
             <div className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-muted/30 border border-border/30">
               <User className="h-3.5 w-3.5 text-muted-foreground" />
-              <span className="text-xs font-medium text-foreground max-w-[120px] truncate hidden sm:inline">{user.name}</span>
+              <span className="text-xs font-medium text-foreground max-w-[160px] truncate hidden sm:inline">{session.user?.name}</span>
 
             </div>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 text-muted-foreground hover:text-foreground"
+              onClick={signOut}
+              disabled={signingOut}
+              aria-label="Sign out"
+            >
+              {signingOut ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <LogOut className="h-3.5 w-3.5" />}
+            </Button>
 
             <div className="w-px h-5 bg-border/60 mx-0.5" />
 
@@ -155,6 +226,12 @@ export default function Home() {
 
       {/* ── Main Content ────────────────────────────────────────── */}
       <main className="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 py-5">
+        <SystemStatus refreshKey={refreshKey} />
+        {signOutError && (
+          <p role="alert" className="mb-4 rounded-lg border border-red-500/25 bg-red-500/5 px-3 py-2 text-xs text-red-300">
+            {signOutError}
+          </p>
+        )}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <TabsList className="w-full sm:w-auto flex flex-wrap h-auto gap-0.5 bg-muted/25 p-1.5 rounded-xl border border-border/25 dark:border-border/12 backdrop-blur-md">
             {TAB_CONFIG.map(({ value, label, icon: Icon }) => (
