@@ -186,11 +186,7 @@ export default function Home() {
               <PoliciesTab refreshKey={refreshKey} />
             </TabsContent>
             <TabsContent value="perimeter" className="mt-0">
-<<<<<<< HEAD
               <PerimeterTab refreshKey={refreshKey} />
-=======
-              <PerimeterTab refreshKey={refreshKey} onRefresh={refresh} />
->>>>>>> 193e563eec90177528092e21ed6ea88aad226193
             </TabsContent>
             <TabsContent value="audit" className="mt-0">
               <AuditTab refreshKey={refreshKey} />
@@ -199,11 +195,7 @@ export default function Home() {
               <CloudsTab refreshKey={refreshKey} />
             </TabsContent>
             <TabsContent value="passage" className="mt-0">
-<<<<<<< HEAD
               <PassageTab refreshKey={refreshKey} />
-=======
-              <PassageTab refreshKey={refreshKey} onRefresh={refresh} />
->>>>>>> 193e563eec90177528092e21ed6ea88aad226193
             </TabsContent>
           </div>
         </Tabs>
