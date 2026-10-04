@@ -10,11 +10,7 @@ export async function GET(req: NextRequest) {
   const format = searchParams.get('format') || 'json';
 
   const accounts = await apiBank.listAccounts({ userId: user.id });
-<<<<<<< HEAD
   const providers = await apiBank.listProviders(user.id);
-=======
-  const providers = await apiBank.listProviders();
->>>>>>> 193e563eec90177528092e21ed6ea88aad226193
 
   if (format === 'csv') {
     const header = 'Provider,Account,Status,Priority,TotalCredits,UsedCredits,Remaining,Unit,Health,LatencyMs,SuccessRate,TodayRequests,TotalRequests,LastUsed';
