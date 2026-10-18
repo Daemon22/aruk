@@ -148,6 +148,34 @@ export function OverviewTab({ refreshKey }: { refreshKey: number }) {
         ))}
       </div>
 
+      <Card className="rounded-xl border-border/50 overflow-hidden">
+        <CardHeader className="pb-3 px-5 pt-4">
+          <CardTitle className="text-sm font-semibold flex items-center gap-2">
+            <Shield className="h-4 w-4 text-brand" />
+            Keeper cycle
+            <span className="ml-auto text-[10px] font-normal text-muted-foreground">Current Aruk signals</span>
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="px-5 pb-5">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-2">
+            {[
+              { step: "01", title: "Determine", value: daemonCount, detail: "trusted daemons", color: "text-violet-400", border: "border-violet-500/20", bg: "bg-violet-500/5" },
+              { step: "02", title: "Verify", value: policyCount, detail: "access policies", color: "text-blue-400", border: "border-blue-500/20", bg: "bg-blue-500/5" },
+              { step: "03", title: "Insure", value: perimeterRules, detail: "active perimeter rules", color: "text-amber-400", border: "border-amber-500/20", bg: "bg-amber-500/5" },
+              { step: "04", title: "Orchestrate", value: activePasses, detail: "active scoped passes", color: "text-emerald-400", border: "border-emerald-500/20", bg: "bg-emerald-500/5" },
+            ].map((item) => (
+              <div key={item.step} className={`rounded-lg border p-3 ${item.border} ${item.bg}`}>
+                <div className="flex items-center justify-between">
+                  <span className={`text-[10px] font-semibold tracking-widest ${item.color}`}>{item.step} / {item.title}</span>
+                  <span className="text-lg font-bold tabular-nums">{item.value}</span>
+                </div>
+                <p className="text-[11px] text-muted-foreground mt-1">{item.detail}</p>
+              </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+
       <div className="grid md:grid-cols-2 gap-4">
         {/* Gate Integrity */}
         <Card className="rounded-xl border-border/50 overflow-hidden">

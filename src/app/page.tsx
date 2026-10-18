@@ -17,7 +17,6 @@ import {
   Fingerprint,
   Cloud,
   ArrowRightLeft,
-  User,
 } from "lucide-react";
 
 import { OverviewTab } from "@/components/api-bank/overview-tab";
@@ -56,10 +55,29 @@ const TAB_CONFIG = [
 
 export default function Home() {
   const { theme, setTheme } = useTheme();
-  const user = { id: 'dev', email: 'dev@aruk.local', name: 'Dev' };
+  const [serviceHealth, setServiceHealth] = useState<"checking" | "healthy" | "degraded" | "unhealthy">("checking");
   const [refreshKey, setRefreshKey] = useState(0);
   const [activeTab, setActiveTab] = useState<string>("overview");
   const [refreshing, setRefreshing] = useState(false);
+  useEffect(() => {
+    let cancelled = false;
+    const checkHealth = async () => {
+      try {
+        const response = await fetch("/api/health", { cache: "no-store" });
+        const data = await response.json();
+        const status = response.ok && data.status === "healthy"
+          ? "healthy"
+          : data.status === "degraded" ? "degraded" : "unhealthy";
+        if (!cancelled) setServiceHealth(status);
+      } catch {
+        if (!cancelled) setServiceHealth("unhealthy");
+      }
+    };
+    void checkHealth();
+    const interval = window.setInterval(checkHealth, 30_000);
+    return () => { cancelled = true; window.clearInterval(interval); };
+  }, []);
+
   const refresh = useCallback(() => {
     setRefreshing(true);
     setRefreshKey((k) => k + 1);
@@ -104,28 +122,23 @@ export default function Home() {
               </p>
             </div>
             <div className="hidden md:flex items-center gap-2 ml-3 px-2.5 py-1 rounded-full bg-muted/40 text-[11px] font-medium border border-border/40 backdrop-blur-sm">
-              <span className="relative flex h-2 w-2">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
+              <span className={`relative inline-flex h-2 w-2 rounded-full ${serviceHealth === "healthy" ? "bg-emerald-500" : serviceHealth === "checking" ? "bg-amber-400" : "bg-red-500"}`} />
+              <span className={serviceHealth === "healthy" ? "text-emerald-500" : serviceHealth === "checking" ? "text-amber-400" : "text-red-400"}>
+                SERVICE {serviceHealth.toUpperCase()}
               </span>
-              <span className="text-emerald-500">GATE ACTIVE</span>
             </div>
           </div>
 
           <div className="flex items-center gap-1.5 shrink-0">
             <div className="md:hidden flex items-center gap-1.5 mr-0.5 px-2 py-1 rounded-full bg-muted/40 text-[10px] font-medium border border-border/40 backdrop-blur-sm">
-              <span className="relative flex h-1.5 w-1.5">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-                <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500" />
+              <span className={`inline-flex h-1.5 w-1.5 rounded-full ${serviceHealth === "healthy" ? "bg-emerald-500" : serviceHealth === "checking" ? "bg-amber-400" : "bg-red-500"}`} />
+              <span className={serviceHealth === "healthy" ? "text-emerald-500" : serviceHealth === "checking" ? "text-amber-400" : "text-red-400"}>
+                {serviceHealth === "checking" ? "CHECKING" : serviceHealth.toUpperCase()}
               </span>
-              <span className="text-emerald-500">LIVE</span>
             </div>
 
-            {/* User menu */}
-            <div className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-muted/30 border border-border/30">
-              <User className="h-3.5 w-3.5 text-muted-foreground" />
-              <span className="text-xs font-medium text-foreground max-w-[120px] truncate hidden sm:inline">{user.name}</span>
-
+            <div className="hidden sm:flex items-center px-2 py-1 rounded-lg bg-muted/30 border border-border/30 text-[11px] text-muted-foreground">
+              Personal control plane
             </div>
 
             <div className="w-px h-5 bg-border/60 mx-0.5" />
@@ -186,11 +199,7 @@ export default function Home() {
               <PoliciesTab refreshKey={refreshKey} />
             </TabsContent>
             <TabsContent value="perimeter" className="mt-0">
-<<<<<<< HEAD
               <PerimeterTab refreshKey={refreshKey} />
-=======
-              <PerimeterTab refreshKey={refreshKey} onRefresh={refresh} />
->>>>>>> 193e563eec90177528092e21ed6ea88aad226193
             </TabsContent>
             <TabsContent value="audit" className="mt-0">
               <AuditTab refreshKey={refreshKey} />
@@ -199,11 +208,7 @@ export default function Home() {
               <CloudsTab refreshKey={refreshKey} />
             </TabsContent>
             <TabsContent value="passage" className="mt-0">
-<<<<<<< HEAD
               <PassageTab refreshKey={refreshKey} />
-=======
-              <PassageTab refreshKey={refreshKey} onRefresh={refresh} />
->>>>>>> 193e563eec90177528092e21ed6ea88aad226193
             </TabsContent>
           </div>
         </Tabs>

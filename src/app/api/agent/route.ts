@@ -35,11 +35,7 @@ async function checkGate(req: NextRequest, userId: string, resourceType: string,
 
   // If a pass token is provided, validate it first
   if (passToken) {
-<<<<<<< HEAD
     const passDecision = await keeper.usePass(passToken, { resourceType, resourceId, scope });
-=======
-    const passDecision = await keeper.usePass(passToken);
->>>>>>> 193e563eec90177528092e21ed6ea88aad226193
     if (!passDecision.allowed) {
       return { allowed: false, reason: passDecision.reason, actorName };
     }
@@ -91,13 +87,8 @@ export async function GET(req: NextRequest) {
     const decision = accountId
       ? await apiBank.getKeyForAccount(user.id, accountId, strategy)
       : provider
-<<<<<<< HEAD
         ? await apiBank.routeForProvider(provider, user.id, strategy)
         : await apiBank.route(user.id, strategy);
-=======
-        ? await apiBank.routeForProvider(provider, strategy, user.id)
-        : await apiBank.route(strategy, user.id);
->>>>>>> 193e563eec90177528092e21ed6ea88aad226193
 
     const payload = {
       ...decision,
@@ -151,13 +142,8 @@ export async function POST(req: NextRequest) {
           decision = await apiBank.getKeyForAccount(user.id, body.accountId as string, strategy);
         } else {
           decision = body.provider
-<<<<<<< HEAD
             ? await apiBank.routeForProvider(body.provider as string, user.id, strategy)
             : await apiBank.route(user.id, strategy);
-=======
-            ? await apiBank.routeForProvider(body.provider as string, strategy, user.id)
-            : await apiBank.route(strategy, user.id);
->>>>>>> 193e563eec90177528092e21ed6ea88aad226193
         }
 
         return NextResponse.json(envelope({
@@ -238,11 +224,7 @@ export async function POST(req: NextRequest) {
         if (!body.id) {
           return errorEnvelope('id (accountId) is required', 400);
         }
-<<<<<<< HEAD
         await apiBank.logUsage(user.id, {
-=======
-        await apiBank.logUsage({
->>>>>>> 193e563eec90177528092e21ed6ea88aad226193
           accountId: body.id as string,
           endpoint: '/v1/chat/completions',
           status: 'success',

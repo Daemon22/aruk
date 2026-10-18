@@ -37,14 +37,10 @@
     ".next/dev/types/**/*.ts"
   ],
   "exclude": [
-<<<<<<< HEAD
     "node_modules",
     "web",
     "src-tauri/server",
     "examples",
     "mini-services"
-=======
-    "node_modules"
->>>>>>> 193e563eec90177528092e21ed6ea88aad226193
   ]
 }
