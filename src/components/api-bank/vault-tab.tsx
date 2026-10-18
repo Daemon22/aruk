@@ -442,6 +442,20 @@ export function VaultTab({ refreshKey, onRefresh }: { refreshKey: number; onRefr
 
   return (
     <div className="space-y-4">
+      <section aria-label="Craft Engine archive seal design" className="relative flex flex-col gap-4 overflow-hidden rounded-2xl border border-emerald-400/20 bg-gradient-to-br from-[#101613] via-[#121817] to-[#191529] p-5 shadow-xl sm:flex-row sm:items-center">
+        <div className="pointer-events-none absolute -right-10 -top-16 h-56 w-56 rounded-full bg-emerald-500/10 blur-3xl" />
+        <div className="relative flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-amber-200/20 bg-[#eee5d2] shadow-[0_0_35px_rgba(198,160,87,0.12)]">
+          <img src="/identity/craft-engine-crest.png" alt="Craft Engine archive crest" className="h-full w-full object-contain" />
+        </div>
+        <div className="relative min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-amber-200">Craft Engine · Archive seal</p>
+            <Badge variant="outline" className="border-amber-200/25 bg-amber-200/5 text-[9px] uppercase tracking-wider text-amber-100">Integration pending</Badge>
+          </div>
+          <h2 className="mt-1 font-serif text-xl text-stone-100">Sealed only after every check.</h2>
+          <p className="mt-1 max-w-3xl text-xs leading-5 text-muted-foreground">The crest belongs to the pack → encrypt → self-verify → fixity-record flow. This is the design reference; it does not report a live archive result.</p>
+        </div>
+      </section>
       {/* Header */}
       <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between">
         <div className="flex gap-2 items-center w-full sm:w-auto flex-wrap">

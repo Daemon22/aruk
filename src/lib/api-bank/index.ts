@@ -85,18 +85,10 @@ export class ApiBank {
 
   // ── ACCOUNTS ──────────────────────────────────────────────
 
-<<<<<<< HEAD
   async listAccounts(filter: { userId: string; status?: AccountStatus; provider?: string }): Promise<AccountWithProvider[]> {
     const where: Prisma.ApiAccountWhereInput = { userId: filter.userId };
     if (filter?.status) where.status = filter.status;
     if (filter?.provider) where.provider = { name: filter.provider };
-=======
-  async listAccounts(filter?: { status?: AccountStatus; provider?: string; userId?: string }): Promise<AccountWithProvider[]> {
-    const where: Prisma.ApiAccountWhereInput = {};
-    if (filter?.status) where.status = filter.status;
-    if (filter?.provider) where.provider = { name: filter.provider };
-    if (filter?.userId) where.userId = filter.userId;
->>>>>>> 193e563eec90177528092e21ed6ea88aad226193
 
     const accounts = await db.apiAccount.findMany({
       where,
@@ -124,11 +116,7 @@ export class ApiBank {
     totalCredits?: number;
     creditUnit?: CreditUnit;
     notes?: string;
-<<<<<<< HEAD
     userId: string;
-=======
-    userId?: string;
->>>>>>> 193e563eec90177528092e21ed6ea88aad226193
   }): Promise<AccountWithProvider> {
     let provider = await db.provider.findUnique({ where: { name: data.providerName } });
     if (!provider) {
@@ -163,11 +151,7 @@ export class ApiBank {
     priority?: number;
     totalCredits?: number;
     creditUnit?: CreditUnit;
-<<<<<<< HEAD
     userId: string;
-=======
-    userId?: string;
->>>>>>> 193e563eec90177528092e21ed6ea88aad226193
   }): Promise<AccountWithProvider[]> {
     let provider = await db.provider.findUnique({ where: { name: data.providerName } });
     if (!provider) {
@@ -214,17 +198,11 @@ export class ApiBank {
     healthScore: number;
     notes: string;
   }>): Promise<AccountWithProvider> {
-<<<<<<< HEAD
     const updateData: Record<string, unknown> = { ...data };
     if (typeof data.apiKey === 'string') updateData.apiKey = encryptSecret(data.apiKey);
     const account = await db.apiAccount.update({
       where: { id, userId },
       data: updateData,
-=======
-    const account = await db.apiAccount.update({
-      where: { id, userId },
-      data,
->>>>>>> 193e563eec90177528092e21ed6ea88aad226193
       include: { provider: { select: { name: true, description: true } } },
     });
     return this.enrichAccount(account);
@@ -243,28 +221,17 @@ export class ApiBank {
 
   // ── CREDIT MONITOR ────────────────────────────────────────
 
-<<<<<<< HEAD
   async getCreditMonitor(userId: string): Promise<AccountWithProvider[]> {
     const accounts = await db.apiAccount.findMany({
       where: { userId, status: { in: ['active', 'backup'] } },
-=======
-  async getCreditMonitor(): Promise<AccountWithProvider[]> {
-    const accounts = await db.apiAccount.findMany({
-      where: { status: { in: ['active', 'backup'] } },
->>>>>>> 193e563eec90177528092e21ed6ea88aad226193
       include: { provider: { select: { name: true, description: true } } },
       orderBy: { healthScore: 'desc' },
     });
     return accounts.map(a => this.enrichAccount(a));
   }
 
-<<<<<<< HEAD
   async getCreditsByProvider(userId: string): Promise<Record<string, { remaining: number; total: number; percent: number; unit: string }>> {
     const whereBase: Prisma.ApiAccountWhereInput = { userId };
-=======
-  async getCreditsByProvider(userId?: string): Promise<Record<string, { remaining: number; total: number; percent: number; unit: string }>> {
-    const whereBase: Prisma.ApiAccountWhereInput = userId ? { userId } : {};
->>>>>>> 193e563eec90177528092e21ed6ea88aad226193
     const accounts = await db.apiAccount.findMany({
       where: { ...whereBase, status: { in: ['active', 'backup'] } },
       include: { provider: { select: { name: true, description: true } } },
@@ -292,13 +259,8 @@ export class ApiBank {
 
   // ── SMART ROUTER ──────────────────────────────────────────
 
-<<<<<<< HEAD
   async route(userId: string, strategy: RoutingStrategy = 'best'): Promise<RoutingDecision> {
     const whereBase: Prisma.ApiAccountWhereInput = { userId };
-=======
-  async route(strategy: RoutingStrategy = 'best', userId?: string): Promise<RoutingDecision> {
-    const whereBase: Prisma.ApiAccountWhereInput = userId ? { userId } : {};
->>>>>>> 193e563eec90177528092e21ed6ea88aad226193
     const active = await db.apiAccount.findMany({
       where: { ...whereBase, status: 'active' },
       include: { provider: { select: { name: true, description: true } } },
@@ -359,13 +321,8 @@ export class ApiBank {
     return this.buildDecision(account, strategy, 'Explicit account selected by authorized caller');
   }
 
-<<<<<<< HEAD
   async routeForProvider(providerName: string, userId: string, strategy: RoutingStrategy = 'best'): Promise<RoutingDecision> {
     const whereBase: Prisma.ApiAccountWhereInput = { userId };
-=======
-  async routeForProvider(providerName: string, strategy: RoutingStrategy = 'best', userId?: string): Promise<RoutingDecision> {
-    const whereBase: Prisma.ApiAccountWhereInput = userId ? { userId } : {};
->>>>>>> 193e563eec90177528092e21ed6ea88aad226193
     const active = await db.apiAccount.findMany({
       where: { ...whereBase, status: 'active', provider: { name: providerName } },
       include: { provider: { select: { name: true, description: true } } },
@@ -394,13 +351,8 @@ export class ApiBank {
 
   // ── FAILOVER CHAIN ────────────────────────────────────────
 
-<<<<<<< HEAD
   async getFailoverChain(userId: string): Promise<AccountWithProvider[]> {
     const whereBase: Prisma.ApiAccountWhereInput = { userId };
-=======
-  async getFailoverChain(userId?: string): Promise<AccountWithProvider[]> {
-    const whereBase: Prisma.ApiAccountWhereInput = userId ? { userId } : {};
->>>>>>> 193e563eec90177528092e21ed6ea88aad226193
     const accounts = await db.apiAccount.findMany({
       where: { ...whereBase, status: { in: ['active', 'backup'] } },
       include: { provider: { select: { name: true, description: true } } },
@@ -411,15 +363,9 @@ export class ApiBank {
 
   // ── STATS & ANALYTICS ─────────────────────────────────────
 
-<<<<<<< HEAD
   async getStats(userId: string): Promise<BankStats> {
     const all = await db.apiAccount.findMany({
       where: { userId },
-=======
-  async getStats(userId?: string): Promise<BankStats> {
-    const all = await db.apiAccount.findMany({
-      where: userId ? { userId } : {},
->>>>>>> 193e563eec90177528092e21ed6ea88aad226193
       include: { provider: { select: { name: true } } },
     });
 
@@ -532,11 +478,7 @@ export class ApiBank {
     return { events, total };
   }
 
-<<<<<<< HEAD
   async logUsage(userId: string, data: {
-=======
-  async logUsage(data: {
->>>>>>> 193e563eec90177528092e21ed6ea88aad226193
     accountId: string;
     endpoint: string;
     model?: string;
@@ -547,11 +489,8 @@ export class ApiBank {
     status?: string;
     errorMessage?: string;
   }): Promise<void> {
-<<<<<<< HEAD
     const account = await db.apiAccount.findFirst({ where: { id: data.accountId, userId }, select: { id: true } });
     if (!account) throw new Error('API account not found');
-=======
->>>>>>> 193e563eec90177528092e21ed6ea88aad226193
     await db.usageLog.create({ data });
   }
 
@@ -566,18 +505,11 @@ export class ApiBank {
 
   // ── PROVIDERS ─────────────────────────────────────────────
 
-<<<<<<< HEAD
   async listProviders(userId: string) {
     return db.provider.findMany({
       include: {
         accounts: {
           where: { userId },
-=======
-  async listProviders() {
-    return db.provider.findMany({
-      include: {
-        accounts: {
->>>>>>> 193e563eec90177528092e21ed6ea88aad226193
           select: {
             id: true, name: true, status: true, healthScore: true,
             totalCredits: true, usedCredits: true, creditUnit: true,
@@ -706,14 +638,8 @@ export interface SecretEntry {
 export class SecretVault {
   // ── CRUD ────────────────────────────────────────────────
 
-<<<<<<< HEAD
   async list(filter: { userId: string; type?: SecretType; provider?: string; purpose?: SecretPurpose; status?: string }): Promise<SecretEntry[]> {
     const where: any = { userId: filter.userId };
-=======
-  async list(filter?: { type?: SecretType; provider?: string; purpose?: SecretPurpose; status?: string; userId?: string }): Promise<SecretEntry[]> {
-    const where: any = {};
-    if (filter?.userId) where.userId = filter.userId;
->>>>>>> 193e563eec90177528092e21ed6ea88aad226193
     if (filter?.type) where.type = filter.type;
     if (filter?.provider) where.provider = filter.provider;
     if (filter?.purpose) where.purpose = filter.purpose;
@@ -727,7 +653,6 @@ export class SecretVault {
     return secrets.map(this.enrich);
   }
 
-<<<<<<< HEAD
   async get(id: string, userId: string): Promise<SecretEntry | null> {
     const secret = await db.secret.findFirst({ where: { id, userId } });
     return secret ? this.enrich(secret) : null;
@@ -735,31 +660,13 @@ export class SecretVault {
 
   async getByName(name: string, provider: string | undefined, userId: string): Promise<SecretEntry | null> {
     const where: any = { name, status: 'active', userId };
-=======
-  async get(id: string, userId?: string): Promise<SecretEntry | null> {
-    const secret = userId
-      ? await db.secret.findUnique({ where: { id, userId } })
-      : await db.secret.findUnique({ where: { id } });
-    return secret ? this.enrich(secret) : null;
-  }
-
-  async getByName(name: string, provider?: string, userId?: string): Promise<SecretEntry | null> {
-    const where: any = { name, status: 'active' };
-    if (userId) where.userId = userId;
->>>>>>> 193e563eec90177528092e21ed6ea88aad226193
     if (provider) where.provider = provider;
     const secret = await db.secret.findFirst({ where, orderBy: { lastUsedAt: 'asc' } });
     return secret ? this.enrich(secret) : null;
   }
 
-<<<<<<< HEAD
   async getByPurpose(purpose: SecretPurpose, provider: string | undefined, userId: string): Promise<SecretEntry | null> {
     const where: any = { purpose, status: 'active', userId };
-=======
-  async getByPurpose(purpose: SecretPurpose, provider?: string, userId?: string): Promise<SecretEntry | null> {
-    const where: any = { purpose, status: 'active' };
-    if (userId) where.userId = userId;
->>>>>>> 193e563eec90177528092e21ed6ea88aad226193
     if (provider) where.provider = provider;
     const secret = await db.secret.findFirst({ where, orderBy: { lastUsedAt: 'asc' } });
     return secret ? this.enrich(secret) : null;
@@ -812,28 +719,14 @@ export class SecretVault {
     await db.secret.delete({ where: { id, userId } });
   }
 
-<<<<<<< HEAD
   async touch(id: string, userId: string): Promise<void> {
     await db.secret.update({ where: { id, userId }, data: { lastUsedAt: new Date() } });
-=======
-  async touch(id: string, userId?: string): Promise<void> {
-    if (userId) {
-      await db.secret.update({ where: { id, userId }, data: { lastUsedAt: new Date() } });
-    } else {
-      await db.secret.update({ where: { id }, data: { lastUsedAt: new Date() } });
-    }
->>>>>>> 193e563eec90177528092e21ed6ea88aad226193
   }
 
   // ── Stats ──────────────────────────────────────────────
 
-<<<<<<< HEAD
   async stats(userId: string): Promise<{ total: number; byType: Record<string, number>; byPurpose: Record<string, number>; byProvider: Record<string, number> }> {
     const all = await db.secret.findMany({ where: { userId } });
-=======
-  async stats(userId?: string): Promise<{ total: number; byType: Record<string, number>; byPurpose: Record<string, number>; byProvider: Record<string, number> }> {
-    const all = await db.secret.findMany({ where: userId ? { userId } : undefined });
->>>>>>> 193e563eec90177528092e21ed6ea88aad226193
     const byType: Record<string, number> = {};
     const byPurpose: Record<string, number> = {};
     const byProvider: Record<string, number> = {};
