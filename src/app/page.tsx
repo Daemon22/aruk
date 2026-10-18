@@ -58,6 +58,7 @@ export default function Home() {
   const [serviceHealth, setServiceHealth] = useState<"checking" | "healthy" | "degraded" | "unhealthy">("checking");
   const [refreshKey, setRefreshKey] = useState(0);
   const [activeTab, setActiveTab] = useState<string>("overview");
+  const [hasEntered, setHasEntered] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   useEffect(() => {
     let cancelled = false;
@@ -101,6 +102,33 @@ export default function Home() {
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
   }, [refresh, theme, setTheme]);
+
+  if (!hasEntered) {
+    return (
+      <main className="fixed inset-0 z-[100] overflow-y-auto bg-[#080b0a] text-stone-100">
+        <div className="mx-auto grid min-h-screen max-w-[1440px] grid-cols-1 items-center gap-5 px-5 py-6 sm:px-8 lg:grid-cols-[0.9fr_1.1fr] lg:gap-12 lg:px-12">
+          <section className="order-2 max-w-xl lg:order-1">
+            <div className="mb-5 flex items-center gap-3">
+              <img src="/identity/aruk-mark.jpg" alt="Aruk canonical mark" className="h-12 w-12 rounded-xl bg-[#eee5d2] object-cover shadow-[0_0_28px_rgba(208,169,84,0.2)]" />
+              <div><p className="font-serif text-sm tracking-[0.2em] text-stone-100">ARUKEL</p><p className="mt-1 text-[9px] uppercase tracking-[0.16em] text-stone-400">The Keeper · Preserver · Guardian</p></div>
+            </div>
+            <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-amber-200">A house of keys, held in trust</p>
+            <h1 className="mt-3 font-serif text-5xl leading-[0.98] tracking-tight sm:text-7xl">The gate<br /><span className="text-amber-200">holds.</span></h1>
+            <p className="mt-5 max-w-lg text-sm leading-7 text-stone-300/85">Aruk guards secrets, keys, access, and movement between your intelligences and the places you trust. Each request keeps its purpose, target, and permission in view.</p>
+            <div className="mt-5 flex flex-wrap gap-2 text-[9px] font-medium uppercase tracking-[0.15em] text-amber-100">
+              <span className="rounded-full border border-amber-200/25 bg-black/25 px-3 py-1.5">Custody</span><span className="rounded-full border border-amber-200/25 bg-black/25 px-3 py-1.5">Scoped access</span><span className="rounded-full border border-amber-200/25 bg-black/25 px-3 py-1.5">Continuity</span>
+            </div>
+            <Button onClick={() => setHasEntered(true)} className="mt-2 border border-amber-200/40 bg-gradient-to-br from-amber-600 to-amber-900 text-amber-50 shadow-lg hover:brightness-110">Enter Aruk <span aria-hidden="true" className="ml-2">→</span></Button>
+            <p className="mt-4 text-[9px] uppercase tracking-[0.1em] text-stone-500">Your secrets stay behind the gate.</p>
+          </section>
+          <figure className="relative order-1 flex min-h-[40vh] items-center justify-center overflow-hidden rounded-[28px] border border-amber-200/20 bg-[radial-gradient(ellipse_at_center,rgba(217,174,80,0.08),transparent_62%),rgba(16,22,19,0.55)] shadow-2xl lg:order-2 lg:min-h-[76vh]">
+            <img src="/identity/aruk-at-gate.jpg" alt="Aruk as the elephant guardian at the gate, shown in full" className="h-auto max-h-[40vh] w-auto max-w-[96%] object-contain drop-shadow-2xl lg:max-h-[76vh]" />
+            <figcaption className="absolute bottom-4 left-0 right-0 text-center font-serif text-xs italic tracking-wide text-amber-100/80">Arukel · the Keeper at the Gate</figcaption>
+          </figure>
+        </div>
+      </main>
+    );
+  }
 
   // ── Dashboard ───────────────────────────────────────────────
   return (

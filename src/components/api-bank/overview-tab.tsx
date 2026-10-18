@@ -128,11 +128,11 @@ export function OverviewTab({ refreshKey }: { refreshKey: number }) {
 
   return (
     <div className="space-y-5">
-      <section aria-label="Aruk canonical identity" className="relative isolate min-h-[270px] overflow-hidden rounded-2xl border border-brand/25 bg-[#101512] shadow-xl">
-        <img src="/identity/aruk-at-gate.jpg" alt="Aruk, the canonical elephant guardian at the gate" className="absolute inset-0 -z-20 h-full w-full object-cover object-[center_38%]" />
-        <div className="absolute inset-0 -z-10 bg-gradient-to-r from-[#090e0c] via-[#090e0c]/90 to-[#090e0c]/15" />
-        <div className="absolute inset-0 -z-10 bg-gradient-to-t from-[#090e0c]/65 via-transparent to-[#090e0c]/10" />
-        <div className="flex min-h-[270px] items-end p-6 sm:p-9">
+      <section aria-label="Aruk canonical identity" className="relative isolate min-h-[300px] overflow-hidden rounded-2xl border border-brand/25 bg-gradient-to-br from-[#101512] via-[#111714] to-[#171a17] shadow-xl sm:min-h-[320px]">
+        <img src="/identity/aruk-at-gate.jpg" alt="Aruk, the canonical elephant guardian at the gate, shown in full" className="absolute right-0 top-1/2 z-0 h-full w-[58%] -translate-y-1/2 object-contain object-right opacity-70 sm:w-1/2 sm:opacity-80" />
+        <div className="absolute inset-0 z-[1] bg-gradient-to-r from-[#090e0c] via-[#090e0c]/95 via-50% to-[#090e0c]/10" />
+        <div className="absolute inset-0 z-[1] bg-gradient-to-t from-[#090e0c]/55 via-transparent to-[#090e0c]/15" />
+        <div className="relative z-[2] flex min-h-[300px] items-center p-6 sm:min-h-[320px] sm:p-9">
           <div className="max-w-xl">
             <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-amber-200">Arukel · The Keeper at the Gate</p>
             <h2 className="mt-3 font-serif text-4xl tracking-tight text-stone-50 sm:text-5xl">The gate <span className="text-amber-200">holds.</span></h2>
@@ -142,7 +142,7 @@ export function OverviewTab({ refreshKey }: { refreshKey: number }) {
             </div>
           </div>
         </div>
-        <span className="absolute bottom-4 right-5 font-serif text-xs italic text-amber-100/90 drop-shadow">The Keeper · the gate holds</span>
+        <span className="absolute bottom-4 right-5 z-[2] font-serif text-xs italic text-amber-100/90 drop-shadow">The Keeper · the gate holds</span>
       </section>
       {/* Gate Status Grid */}
       <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3">
