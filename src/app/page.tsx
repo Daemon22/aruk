@@ -105,26 +105,16 @@ export default function Home() {
 
   if (!hasEntered) {
     return (
-      <main className="fixed inset-0 z-[100] overflow-y-auto bg-[#080b0a] text-stone-100">
-        <div className="mx-auto grid min-h-screen max-w-[1440px] grid-cols-1 items-center gap-5 px-5 py-6 sm:px-8 lg:grid-cols-[0.9fr_1.1fr] lg:gap-12 lg:px-12">
-          <section className="order-2 max-w-xl lg:order-1">
-            <div className="mb-5 flex items-center gap-3">
-              <img src="/identity/aruk-mark.jpg" alt="Aruk canonical mark" className="h-12 w-12 rounded-xl bg-[#eee5d2] object-cover shadow-[0_0_28px_rgba(208,169,84,0.2)]" />
-              <div><p className="font-serif text-sm tracking-[0.2em] text-stone-100">ARUKEL</p><p className="mt-1 text-[9px] uppercase tracking-[0.16em] text-stone-400">The Keeper · Preserver · Guardian</p></div>
-            </div>
-            <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-amber-200">A house of keys, held in trust</p>
-            <h1 className="mt-3 font-serif text-5xl leading-[0.98] tracking-tight sm:text-7xl">The gate<br /><span className="text-amber-200">holds.</span></h1>
-            <p className="mt-5 max-w-lg text-sm leading-7 text-stone-300/85">Aruk guards secrets, keys, access, and movement between your intelligences and the places you trust. Each request keeps its purpose, target, and permission in view.</p>
-            <div className="mt-5 flex flex-wrap gap-2 text-[9px] font-medium uppercase tracking-[0.15em] text-amber-100">
-              <span className="rounded-full border border-amber-200/25 bg-black/25 px-3 py-1.5">Custody</span><span className="rounded-full border border-amber-200/25 bg-black/25 px-3 py-1.5">Scoped access</span><span className="rounded-full border border-amber-200/25 bg-black/25 px-3 py-1.5">Continuity</span>
-            </div>
-            <Button onClick={() => setHasEntered(true)} className="mt-2 border border-amber-200/40 bg-gradient-to-br from-amber-600 to-amber-900 text-amber-50 shadow-lg hover:brightness-110">Enter Aruk <span aria-hidden="true" className="ml-2">→</span></Button>
-            <p className="mt-4 text-[9px] uppercase tracking-[0.1em] text-stone-500">Your secrets stay behind the gate.</p>
-          </section>
-          <figure className="relative order-1 flex min-h-[40vh] items-center justify-center overflow-hidden rounded-[28px] border border-amber-200/20 bg-[radial-gradient(ellipse_at_center,rgba(217,174,80,0.08),transparent_62%),rgba(16,22,19,0.55)] shadow-2xl lg:order-2 lg:min-h-[76vh]">
-            <img src="/identity/aruk-at-gate.jpg" alt="Aruk as the elephant guardian at the gate, shown in full" className="h-auto max-h-[40vh] w-auto max-w-[96%] object-contain drop-shadow-2xl lg:max-h-[76vh]" />
-            <figcaption className="absolute bottom-4 left-0 right-0 text-center font-serif text-xs italic tracking-wide text-amber-100/80">Arukel · the Keeper at the Gate</figcaption>
+      <main className="fixed inset-0 z-[100] grid min-h-screen place-items-center overflow-y-auto bg-[#080b0a] p-4 text-stone-100">
+        <div className="flex w-full max-w-[520px] flex-col items-center gap-4">
+          <figure className="relative flex h-[min(76vh,680px)] w-[min(88vw,454px)] items-center justify-center rounded-3xl border border-amber-200/20 bg-[radial-gradient(ellipse_at_center,rgba(217,174,80,0.08),transparent_62%),rgba(16,22,19,0.55)] shadow-2xl">
+            <img src="/identity/aruk-at-gate.jpg" alt="Aruk as the elephant guardian at the gate, shown in full" className="h-auto max-h-full w-auto max-w-full object-contain drop-shadow-2xl" />
           </figure>
+          <div className="flex flex-wrap items-center justify-center gap-3">
+            <img src="/identity/aruk-mark.jpg" alt="" className="h-10 w-10 rounded-xl bg-[#eee5d2] object-cover" />
+            <span className="font-serif text-xs tracking-[0.18em] text-stone-200">ARUKEL <span className="ml-1 text-[9px] tracking-[0.12em] text-stone-500">THE KEEPER</span></span>
+            <Button onClick={() => setHasEntered(true)} className="border border-amber-200/40 bg-gradient-to-br from-amber-600 to-amber-900 text-amber-50 shadow-lg hover:brightness-110">Open workspace <span aria-hidden="true" className="ml-2">→</span></Button>
+          </div>
         </div>
       </main>
     );
@@ -195,22 +185,22 @@ export default function Home() {
       </header>
 
       {/* ── Main Content ────────────────────────────────────────── */}
-      <main className="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 py-5">
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="w-full sm:w-auto flex flex-wrap h-auto gap-0.5 bg-muted/25 p-1.5 rounded-xl border border-border/25 dark:border-border/12 backdrop-blur-md">
+      <main className="flex-1 mx-auto w-full max-w-[1600px] px-3 py-5 sm:px-5 lg:px-6">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="mx-auto grid w-full grid-cols-1 items-start gap-4 lg:grid-cols-[210px_minmax(0,1fr)]">
+          <TabsList className="grid w-full grid-cols-3 gap-1 bg-muted/25 p-2 rounded-xl border border-border/25 dark:border-border/12 backdrop-blur-md lg:sticky lg:top-24 lg:col-start-1 lg:row-start-1 lg:flex lg:h-auto lg:flex-col lg:items-stretch">
             {TAB_CONFIG.map(({ value, label, icon: Icon }) => (
               <TabsTrigger
                 key={value}
                 value={value}
-                className="text-xs sm:text-sm gap-1.5 rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm data-[state=active]:text-foreground data-[state=active]:font-medium"
+                className="w-full justify-start gap-2 rounded-lg text-xs data-[state=active]:bg-background data-[state=active]:shadow-sm data-[state=active]:text-foreground data-[state=active]:font-medium"
               >
                 <Icon className="h-3.5 w-3.5" />
-                <span className="hidden sm:inline">{label}</span>
+                <span>{label}</span>
               </TabsTrigger>
             ))}
           </TabsList>
 
-          <div className="mt-5">
+          <div className="mt-1 min-w-0 lg:col-start-2 lg:row-start-1 lg:mt-0">
             <TabsContent value="overview" className="mt-0">
               <OverviewTab refreshKey={refreshKey} />
             </TabsContent>
@@ -247,7 +237,7 @@ export default function Home() {
         <div className="absolute top-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-border/30 to-transparent" />
         <div className="max-w-7xl mx-auto px-4 sm:px-6 flex flex-col sm:flex-row items-center justify-between gap-1.5">
           <span className="flex items-center gap-1.5">
-            <img src="/logo.png" alt="" width={14} height={14} className="rounded opacity-50 hover:opacity-80 transition-opacity duration-300" />
+            <img src="/identity/aruk-mark.jpg" alt="" width={14} height={14} className="rounded opacity-50 hover:opacity-80 transition-opacity duration-300" />
             <span>Aruk</span>
             <span className="text-muted-foreground/30">—</span>
             <span className="text-muted-foreground/40">The gate holds</span>
