@@ -122,7 +122,7 @@ export default function Home() {
 
   // ── Dashboard ───────────────────────────────────────────────
   return (
-    <div className="min-h-screen bg-background flex flex-col relative overflow-hidden">
+    <div className="min-h-screen bg-background flex flex-col relative">
       {/* ── Header ─────────────────────────────────────────────── */}
       <header className="sticky top-0 z-50 glass-strong border-b border-border/50 dark:border-border/25 relative overflow-hidden">
         <div className="absolute bottom-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-brand/40 to-transparent transition-opacity duration-500" />
