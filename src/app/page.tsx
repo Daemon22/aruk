@@ -17,7 +17,6 @@ import {
   Fingerprint,
   Cloud,
   ArrowRightLeft,
-  User,
 } from "lucide-react";
 
 import { OverviewTab } from "@/components/api-bank/overview-tab";
@@ -56,10 +55,30 @@ const TAB_CONFIG = [
 
 export default function Home() {
   const { theme, setTheme } = useTheme();
-  const user = { id: 'dev', email: 'dev@aruk.local', name: 'Dev' };
+  const [serviceHealth, setServiceHealth] = useState<"checking" | "healthy" | "degraded" | "unhealthy">("checking");
   const [refreshKey, setRefreshKey] = useState(0);
   const [activeTab, setActiveTab] = useState<string>("overview");
+  const [hasEntered, setHasEntered] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  useEffect(() => {
+    let cancelled = false;
+    const checkHealth = async () => {
+      try {
+        const response = await fetch("/api/health", { cache: "no-store" });
+        const data = await response.json();
+        const status = response.ok && data.status === "healthy"
+          ? "healthy"
+          : data.status === "degraded" ? "degraded" : "unhealthy";
+        if (!cancelled) setServiceHealth(status);
+      } catch {
+        if (!cancelled) setServiceHealth("unhealthy");
+      }
+    };
+    void checkHealth();
+    const interval = window.setInterval(checkHealth, 30_000);
+    return () => { cancelled = true; window.clearInterval(interval); };
+  }, []);
+
   const refresh = useCallback(() => {
     setRefreshing(true);
     setRefreshKey((k) => k + 1);
@@ -84,16 +103,33 @@ export default function Home() {
     return () => window.removeEventListener("keydown", handler);
   }, [refresh, theme, setTheme]);
 
+  if (!hasEntered) {
+    return (
+      <main className="fixed inset-0 z-[100] grid min-h-screen place-items-center overflow-y-auto bg-[#080b0a] p-4 text-stone-100">
+        <div className="flex w-full max-w-[520px] flex-col items-center gap-4">
+          <figure className="relative flex h-[min(76vh,680px)] w-[min(88vw,454px)] items-center justify-center rounded-3xl border border-amber-200/20 bg-[radial-gradient(ellipse_at_center,rgba(217,174,80,0.08),transparent_62%),rgba(16,22,19,0.55)] shadow-2xl">
+            <img src="/identity/aruk-at-gate.jpg" alt="Aruk as the elephant guardian at the gate, shown in full" className="h-auto max-h-full w-auto max-w-full object-contain drop-shadow-2xl" />
+          </figure>
+          <div className="flex flex-wrap items-center justify-center gap-3">
+            <img src="/identity/aruk-mark.jpg" alt="" className="h-10 w-10 rounded-xl bg-[#eee5d2] object-cover" />
+            <span className="font-serif text-xs tracking-[0.18em] text-stone-200">ARUKEL <span className="ml-1 text-[9px] tracking-[0.12em] text-stone-500">THE KEEPER</span></span>
+            <Button onClick={() => setHasEntered(true)} className="border border-amber-200/40 bg-gradient-to-br from-amber-600 to-amber-900 text-amber-50 shadow-lg hover:brightness-110">Open workspace <span aria-hidden="true" className="ml-2">→</span></Button>
+          </div>
+        </div>
+      </main>
+    );
+  }
+
   // ── Dashboard ───────────────────────────────────────────────
   return (
-    <div className="min-h-screen bg-background flex flex-col relative overflow-hidden">
+    <div className="min-h-screen bg-background flex flex-col relative">
       {/* ── Header ─────────────────────────────────────────────── */}
       <header className="sticky top-0 z-50 glass-strong border-b border-border/50 dark:border-border/25 relative overflow-hidden">
         <div className="absolute bottom-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-brand/40 to-transparent transition-opacity duration-500" />
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-2.5 flex items-center justify-between gap-4">
           <div className="flex items-center gap-3 min-w-0">
             <div className="relative h-10 w-10 rounded-xl overflow-hidden shrink-0 shadow-lg ring-1 ring-brand/25 transition-all duration-500 hover:ring-brand/50 hover:shadow-[0_0_24px_var(--glow-strong)] hover:scale-105">
-              <img src="/logo.png" alt="Aruk" width={40} height={40} className="h-full w-full object-cover" />
+              <img src="/identity/aruk-mark.jpg" alt="Aruk canonical emerald-and-gold mark" width={40} height={40} className="h-full w-full object-cover" />
             </div>
             <div className="min-w-0">
               <h1 className="text-base font-bold tracking-tight leading-none">
@@ -104,28 +140,23 @@ export default function Home() {
               </p>
             </div>
             <div className="hidden md:flex items-center gap-2 ml-3 px-2.5 py-1 rounded-full bg-muted/40 text-[11px] font-medium border border-border/40 backdrop-blur-sm">
-              <span className="relative flex h-2 w-2">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
+              <span className={`relative inline-flex h-2 w-2 rounded-full ${serviceHealth === "healthy" ? "bg-emerald-500" : serviceHealth === "checking" ? "bg-amber-400" : "bg-red-500"}`} />
+              <span className={serviceHealth === "healthy" ? "text-emerald-500" : serviceHealth === "checking" ? "text-amber-400" : "text-red-400"}>
+                SERVICE {serviceHealth.toUpperCase()}
               </span>
-              <span className="text-emerald-500">GATE ACTIVE</span>
             </div>
           </div>
 
           <div className="flex items-center gap-1.5 shrink-0">
             <div className="md:hidden flex items-center gap-1.5 mr-0.5 px-2 py-1 rounded-full bg-muted/40 text-[10px] font-medium border border-border/40 backdrop-blur-sm">
-              <span className="relative flex h-1.5 w-1.5">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-                <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500" />
+              <span className={`inline-flex h-1.5 w-1.5 rounded-full ${serviceHealth === "healthy" ? "bg-emerald-500" : serviceHealth === "checking" ? "bg-amber-400" : "bg-red-500"}`} />
+              <span className={serviceHealth === "healthy" ? "text-emerald-500" : serviceHealth === "checking" ? "text-amber-400" : "text-red-400"}>
+                {serviceHealth === "checking" ? "CHECKING" : serviceHealth.toUpperCase()}
               </span>
-              <span className="text-emerald-500">LIVE</span>
             </div>
 
-            {/* User menu */}
-            <div className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-muted/30 border border-border/30">
-              <User className="h-3.5 w-3.5 text-muted-foreground" />
-              <span className="text-xs font-medium text-foreground max-w-[120px] truncate hidden sm:inline">{user.name}</span>
-
+            <div className="hidden sm:flex items-center px-2 py-1 rounded-lg bg-muted/30 border border-border/30 text-[11px] text-muted-foreground">
+              Personal control plane
             </div>
 
             <div className="w-px h-5 bg-border/60 mx-0.5" />
@@ -154,22 +185,22 @@ export default function Home() {
       </header>
 
       {/* ── Main Content ────────────────────────────────────────── */}
-      <main className="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 py-5">
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="w-full sm:w-auto flex flex-wrap h-auto gap-0.5 bg-muted/25 p-1.5 rounded-xl border border-border/25 dark:border-border/12 backdrop-blur-md">
+      <main className="flex-1 mx-auto w-full max-w-[1600px] px-3 py-5 sm:px-5 lg:px-6">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="mx-auto grid w-full grid-cols-1 items-start gap-4 lg:grid-cols-[210px_minmax(0,1fr)]">
+          <TabsList className="grid w-full grid-cols-3 gap-1 bg-muted/25 p-2 rounded-xl border border-border/25 dark:border-border/12 backdrop-blur-md lg:sticky lg:top-24 lg:col-start-1 lg:row-start-1 lg:flex lg:h-auto lg:flex-col lg:items-stretch">
             {TAB_CONFIG.map(({ value, label, icon: Icon }) => (
               <TabsTrigger
                 key={value}
                 value={value}
-                className="text-xs sm:text-sm gap-1.5 rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm data-[state=active]:text-foreground data-[state=active]:font-medium"
+                className="w-full justify-start gap-2 rounded-lg text-xs data-[state=active]:bg-background data-[state=active]:shadow-sm data-[state=active]:text-foreground data-[state=active]:font-medium"
               >
                 <Icon className="h-3.5 w-3.5" />
-                <span className="hidden sm:inline">{label}</span>
+                <span>{label}</span>
               </TabsTrigger>
             ))}
           </TabsList>
 
-          <div className="mt-5">
+          <div className="mt-1 min-w-0 lg:col-start-2 lg:row-start-1 lg:mt-0">
             <TabsContent value="overview" className="mt-0">
               <OverviewTab refreshKey={refreshKey} />
             </TabsContent>
@@ -186,11 +217,7 @@ export default function Home() {
               <PoliciesTab refreshKey={refreshKey} />
             </TabsContent>
             <TabsContent value="perimeter" className="mt-0">
-<<<<<<< HEAD
               <PerimeterTab refreshKey={refreshKey} />
-=======
-              <PerimeterTab refreshKey={refreshKey} onRefresh={refresh} />
->>>>>>> 193e563eec90177528092e21ed6ea88aad226193
             </TabsContent>
             <TabsContent value="audit" className="mt-0">
               <AuditTab refreshKey={refreshKey} />
@@ -199,11 +226,7 @@ export default function Home() {
               <CloudsTab refreshKey={refreshKey} />
             </TabsContent>
             <TabsContent value="passage" className="mt-0">
-<<<<<<< HEAD
               <PassageTab refreshKey={refreshKey} />
-=======
-              <PassageTab refreshKey={refreshKey} onRefresh={refresh} />
->>>>>>> 193e563eec90177528092e21ed6ea88aad226193
             </TabsContent>
           </div>
         </Tabs>
@@ -214,7 +237,7 @@ export default function Home() {
         <div className="absolute top-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-border/30 to-transparent" />
         <div className="max-w-7xl mx-auto px-4 sm:px-6 flex flex-col sm:flex-row items-center justify-between gap-1.5">
           <span className="flex items-center gap-1.5">
-            <img src="/logo.png" alt="" width={14} height={14} className="rounded opacity-50 hover:opacity-80 transition-opacity duration-300" />
+            <img src="/identity/aruk-mark.jpg" alt="" width={14} height={14} className="rounded opacity-50 hover:opacity-80 transition-opacity duration-300" />
             <span>Aruk</span>
             <span className="text-muted-foreground/30">—</span>
             <span className="text-muted-foreground/40">The gate holds</span>

@@ -18,17 +18,11 @@
 //   bun scripts/apibank.ts vault             List all secrets in the vault
 //   bun scripts/apibank.ts vault-add <name> <type> <provider> <key=val>...
 //   bun scripts/apibank.ts vault-get <purpose> [provider]
-<<<<<<< HEAD
   //   bun scripts/apibank.ts daemons
   //   bun scripts/apibank.ts pass-issue Baro api_account 120
   //   bun scripts/apibank.ts audit --json
 
 export {};
-=======
-    bun scripts/apibank.ts daemons
-    bun scripts/apibank.ts pass-issue Baro api_account 120
-    bun scripts/apibank.ts audit --json
->>>>>>> 193e563eec90177528092e21ed6ea88aad226193
 
 const BASE = process.env.APIBANK_URL || 'http://localhost:3000';
 
