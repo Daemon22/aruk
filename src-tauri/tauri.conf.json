@@ -13,7 +13,7 @@
     "windows": [
       {
         "label": "main",
-        "title": "Aruk \u2014 Keeper of Secrets and Keys",
+        "title": "Aruk — Keeper of Secrets and Keys",
         "width": 1200,
         "height": 800,
         "minWidth": 900,
@@ -33,7 +33,9 @@
   },
   "bundle": {
     "active": true,
-    "targets": ["nsis"],
+    "targets": [
+      "nsis"
+    ],
     "icon": [
       "icons/icon.png",
       "icons/icon.ico",
@@ -42,16 +44,16 @@
     "resources": {
       "server/*": "server/"
     },
-    "externalBin": ["binaries/bun-x86_64-pc-windows-msvc"],
+    "externalBin": [
+      "binaries/bun-x86_64-pc-windows-msvc"
+    ],
     "windows": {
       "nsis": {
         "displayLanguageSelector": false,
-        "languages": ["English"],
-        "installMode": "currentUser",
-        "startMenuShortcut": true,
-        "desktopShortcut": true,
-        "createDesktopShortcut": true,
-        "createStartMenuShortcut": true
+        "languages": [
+          "English"
+        ],
+        "installMode": "currentUser"
       },
       "webviewInstallMode": {
         "type": "downloadBootstrapper",
