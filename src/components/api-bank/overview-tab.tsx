@@ -46,6 +46,7 @@ interface AuditEntry {
 
 export function OverviewTab({ refreshKey }: { refreshKey: number }) {
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [daemonCount, setDaemonCount] = useState(0);
   const [activePasses, setActivePasses] = useState(0);
   const [policyCount, setPolicyCount] = useState(0);
@@ -57,15 +58,22 @@ export function OverviewTab({ refreshKey }: { refreshKey: number }) {
 
   useEffect(() => {
     let cancelled = false;
+    setLoading(true);
+    setLoadError(null);
+    const read = async (url: string) => {
+      const response = await fetch(url, { cache: 'no-store' });
+      if (!response.ok) throw new Error(`Aruk data request failed (${response.status})`);
+      return response.json();
+    };
     Promise.all([
-      fetch('/api/daemons').then(r => r.json()).catch(() => []),
-      fetch('/api/passes?status=active').then(r => r.json()).catch(() => []),
-      fetch('/api/policies').then(r => r.json()).catch(() => []),
-      fetch('/api/perimeter').then(r => r.json()).catch(() => []),
-      fetch('/api/audit?stats=true').then(r => r.json()).catch(() => null),
-      fetch('/api/audit?perPage=8').then(r => r.json()).catch(() => ({ events: [] })),
-      fetch('/api/cloud-accounts').then(r => r.json()).catch(() => ({ data: [] })),
-      fetch('/api/offload?stats=true').then(r => r.json()).catch(() => null),
+      read('/api/daemons'),
+      read('/api/passes?status=active'),
+      read('/api/policies'),
+      read('/api/perimeter'),
+      read('/api/audit?stats=true'),
+      read('/api/audit?perPage=8'),
+      read('/api/cloud-accounts'),
+      read('/api/offload?stats=true'),
     ]).then(([daemons, passes, policies, rules, audit, events, clouds, passage]) => {
       if (!cancelled) {
         setDaemonCount(daemons.filter((d: any) => d.status === 'active').length);
@@ -78,56 +86,50 @@ export function OverviewTab({ refreshKey }: { refreshKey: number }) {
         if (passage?.data) setPassageStats(passage.data);
         setLoading(false);
       }
+    }).catch(() => {
+      if (!cancelled) {
+        setLoadError("Aruk’s data service is unavailable. No live records are being shown.");
+        setLoading(false);
+      }
     });
     return () => { cancelled = true; };
   }, [refreshKey]);
 
-  if (loading) {
+  if (loadError) {
     return (
-      <div className="space-y-5">
-        <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3">
-          {Array.from({ length: 7 }).map((_, i) => (
-            <Skeleton key={i} className="h-[100px] rounded-xl" />
-          ))}
-        </div>
-        <Skeleton className="h-[200px] rounded-xl" />
-      </div>
+      <Card className="rounded-xl border-amber-400/20 bg-[#101512]/75 backdrop-blur-sm">
+        <CardContent className="flex items-start gap-3 p-5">
+          <ShieldAlert className="mt-0.5 h-4 w-4 shrink-0 text-amber-300" />
+          <div>
+            <p className="text-sm font-medium text-foreground">Overview is waiting for Aruk’s backend</p>
+            <p className="mt-1 text-xs text-muted-foreground">{loadError} Use Refresh after the service is available.</p>
+          </div>
+        </CardContent>
+      </Card>
     );
   }
 
-  const statCards = [
-    { label: "Trusted Daemons", value: daemonCount, icon: GitBranch, accent: "text-violet-400", bg: "bg-violet-500/8", border: "border-violet-500/20" },
-    { label: "Active Passes", value: activePasses, icon: Lock, accent: "text-emerald-400", bg: "bg-emerald-500/8", border: "border-emerald-500/20" },
-    { label: "Policies", value: policyCount, icon: Fingerprint, accent: "text-blue-400", bg: "bg-blue-500/8", border: "border-blue-500/20" },
-    { label: "Perimeter Rules", value: perimeterRules, icon: ShieldAlert, accent: "text-amber-400", bg: "bg-amber-400/8", border: "border-amber-400/20" },
-    { label: "Access Events", value: auditStats?.total ?? 0, icon: ScrollText, accent: "text-cyan-400", bg: "bg-cyan-400/8", border: "border-cyan-400/20" },
-    { label: "Cloud Accounts", value: cloudAccountCount, icon: Cloud, accent: "text-sky-400", bg: "bg-sky-400/8", border: "border-sky-400/20" },
-    { label: "Passages", value: passageStats?.total ?? 0, icon: ArrowRightLeft, accent: "text-orange-400", bg: "bg-orange-400/8", border: "border-orange-400/20" },
-  ];
-
-  const actionIcons: Record<string, string> = {
-    pass_issued: '🔑', pass_revoked: '🚫', daemon_registered: '✨',
-    daemon_revoked: '💀', policy_created: '📜', passage_out: '📤',
-    access_denied: '🛡️', cloud_account_connected: '☁️',
-    cloud_account_revoked: '🛑', data_offloaded: '⬇️', data_retrieved: '⬆️',
-  };
-
-  const timeAgo = (date: string) => {
-    const s = Math.floor((Date.now() - new Date(date).getTime()) / 1000);
-    if (s < 60) return `${s}s ago`;
-    const m = Math.floor(s / 60);
-    if (m < 60) return `${m}m ago`;
-    const h = Math.floor(m / 60);
-    if (h < 24) return `${h}h ago`;
-    return `${Math.floor(h / 24)}d ago`;
-  };
-
-  const allowedPct = auditStats && auditStats.total > 0
-    ? Math.round((auditStats.allowed / auditStats.total) * 100)
-    : 100;
-
-  return (
-    <div className="space-y-5">
+  if (loading) {
+    return (
+      <div className="relative isolate rounded-2xl">
+      <div aria-hidden="true" className="pointer-events-none sticky top-0 z-0 -mb-[100svh] h-[100svh] min-h-[520px] w-full overflow-hidden rounded-2xl">
+        <img src="/identity/aruk-at-gate.jpg" alt="" className="absolute inset-0 h-full w-full object-contain object-right opacity-75" />
+        <div className="absolute inset-0 bg-gradient-to-r from-background/95 via-background/65 to-background/15" />
+        <div className="absolute inset-0 bg-gradient-to-t from-background/70 via-transparent to-background/20" />
+      </div>
+      <div className="relative z-10 space-y-5 p-1 sm:p-2">
+      <section aria-label="Aruk canonical identity" className="relative rounded-2xl border border-brand/25 bg-[#101512]/70 shadow-xl backdrop-blur-sm">
+        <div className="flex min-h-[270px] items-center p-6 sm:min-h-[300px] sm:p-9">
+          <div className="max-w-xl">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-amber-200">Arukel · The Keeper at the Gate</p>
+            <h2 className="mt-3 font-serif text-4xl tracking-tight text-stone-50 sm:text-5xl">The gate <span className="text-amber-200">holds.</span></h2>
+            <p className="mt-3 max-w-lg text-sm leading-6 text-stone-200/85">Custody in both directions. Every key, passage, and process stays scoped, checked, and recorded. Aruk holds the house’s keys; each intelligence receives only the authority it has been granted.</p>
+            <div className="mt-5 flex flex-wrap gap-2 text-[9px] font-medium uppercase tracking-[0.16em] text-amber-100">
+              <span className="rounded-full border border-amber-200/25 bg-black/25 px-3 py-1.5">Preserver</span><span className="rounded-full border border-amber-200/25 bg-black/25 px-3 py-1.5">Guardian</span><span className="rounded-full border border-amber-200/25 bg-black/25 px-3 py-1.5">Continuity</span><span className="rounded-full border border-emerald-200/25 bg-black/25 px-3 py-1.5 text-emerald-100">Default-deny</span>
+            </div>
+          </div>
+        </div>
+      </section>
       {/* Gate Status Grid */}
       <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3">
         {statCards.map(({ label, value, icon: Icon, accent, bg, border }, i) => (
@@ -147,6 +149,34 @@ export function OverviewTab({ refreshKey }: { refreshKey: number }) {
           </Card>
         ))}
       </div>
+
+      <Card className="rounded-xl border-border/50 overflow-hidden">
+        <CardHeader className="pb-3 px-5 pt-4">
+          <CardTitle className="text-sm font-semibold flex items-center gap-2">
+            <Shield className="h-4 w-4 text-brand" />
+            Keeper cycle
+            <span className="ml-auto text-[10px] font-normal text-muted-foreground">Current Aruk signals</span>
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="px-5 pb-5">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-2">
+            {[
+              { step: "01", title: "Determine", value: daemonCount, detail: "trusted daemons", color: "text-violet-400", border: "border-violet-500/20", bg: "bg-violet-500/5" },
+              { step: "02", title: "Verify", value: policyCount, detail: "access policies", color: "text-blue-400", border: "border-blue-500/20", bg: "bg-blue-500/5" },
+              { step: "03", title: "Insure", value: perimeterRules, detail: "active perimeter rules", color: "text-amber-400", border: "border-amber-500/20", bg: "bg-amber-500/5" },
+              { step: "04", title: "Orchestrate", value: activePasses, detail: "active scoped passes", color: "text-emerald-400", border: "border-emerald-500/20", bg: "bg-emerald-500/5" },
+            ].map((item) => (
+              <div key={item.step} className={`rounded-lg border p-3 ${item.border} ${item.bg}`}>
+                <div className="flex items-center justify-between">
+                  <span className={`text-[10px] font-semibold tracking-widest ${item.color}`}>{item.step} / {item.title}</span>
+                  <span className="text-lg font-bold tabular-nums">{item.value}</span>
+                </div>
+                <p className="text-[11px] text-muted-foreground mt-1">{item.detail}</p>
+              </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
 
       <div className="grid md:grid-cols-2 gap-4">
         {/* Gate Integrity */}
@@ -287,6 +317,7 @@ export function OverviewTab({ refreshKey }: { refreshKey: number }) {
           </div>
         </CardContent>
       </Card>
+      </div>
     </div>
   );
 }
