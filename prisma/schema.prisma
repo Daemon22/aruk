@@ -27,6 +27,20 @@ model User {
   policies     AccessPolicy[]
   auditEvents  AuditEvent[]
   passageRules PassageRule[]
+  sessions     AuthSession[]
+}
+
+// Revocable opaque sessions. Only an HMAC-SHA-256 digest of the bearer token is stored.
+model AuthSession {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash String   @unique
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime @default(now())
+
+  @@index([userId, expiresAt])
 }
 
 // ─── Core: API Accounts & Providers ───────────────────────────

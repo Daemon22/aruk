@@ -39,7 +39,7 @@ assert(nextConfig.includes('X-Aruk-Pass, X-Aruk-Actor, X-Aruk-Role'), 'CORS allo
 assert(auth.includes("req.headers.get('authorization')"), 'API sessions accept the SDK authorization header');
 assert(auth.includes("/^Bearer\\s+([^\\s]+)$/i"), 'bearer authentication uses strict token parsing');
 assert(auth.includes("aruk_session=([^;]+)"), 'cookie session authentication remains supported');
-assert(auth.includes('bearerUserId !== cookieUserId'), 'conflicting bearer and cookie identities are rejected');
+assert(auth.includes('(!bearerSession || !cookieSession || bearerSession.id !== cookieSession.id)'), 'invalid or conflicting bearer and cookie identities are rejected');
 assert(apiBank.includes('async listProviders(userId: string)'), 'provider metadata listing requires a user scope');
 assert(apiBank.includes('where: { id: data.accountId, userId }'), 'usage writes verify account ownership');
 assert(apiBank.includes('async get(id: string, userId: string)'), 'secret retrieval requires a user scope');

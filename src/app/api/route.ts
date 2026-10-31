@@ -8,6 +8,10 @@ export async function GET() {
     version: "1.0.0",
     description: "Centralized API key management with intelligent routing",
     endpoints: {
+      register: "POST /api/auth/register              — Create a personal account (disabled by default)",
+      login: "POST /api/auth/login                    — Start a revocable user session",
+      logout: "POST /api/auth/logout                  — Revoke the current session",
+      session: "GET /api/auth/session                 — Return the current user identity",
       health: "GET  /api/health                          — Heartbeat check",
       agent: "GET  /api/agent?strategy=best&provider=...  — One-shot key retrieval",
       agent_post: "POST /api/agent                        — Structured actions (get_key, status, list, add_key, add_keys, report_usage, failover)",
