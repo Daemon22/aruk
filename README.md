@@ -200,6 +200,12 @@ curl -X POST http://localhost:3000/api/agent \
 | `list_secrets` | List all vault secrets |
 | `add_secret` | Add a new secret to the vault |
 
+### Private files
+
+Aruk's Vault stores files in the local SQLite database, encrypts file contents by default, and can optionally compress them. Downloads are account-scoped and integrity-checked. See [docs/VAULT-FILES.md](docs/VAULT-FILES.md) for key management, backups, the 8 MiB file limit, and deployment steps.
+
+Cloud destinations store encrypted credentials and metadata; they are not provider-verified. Passage records transfer metadata and does not move bytes. The Vault is the feature for storing files directly inside Aruk.
+
 ### Account sessions
 
 The backend exposes `POST /api/auth/register` (disabled unless `ARUK_ALLOW_PUBLIC_SIGNUP=true`),

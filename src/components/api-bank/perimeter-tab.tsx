@@ -11,6 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Skeleton } from "@/components/ui/skeleton";
 import { ShieldCheck, Plus, ArrowUpRight, ArrowDownLeft, ArrowLeftRight, Trash2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { requestArray, requestJson } from "@/lib/client-api";
 
 interface PassageRule {
   id: string; name: string; direction: string; description: string | null;
@@ -40,7 +41,7 @@ export function PerimeterTab({ refreshKey }: { refreshKey: number }) {
   const load = async () => {
     try {
       const params = filterDir ? `?direction=${filterDir}` : '';
-      const data = await fetch(`/api/perimeter${params}`).then(r => r.json());
+      const data = await requestArray<PassageRule>(`/api/perimeter${params}`);
       setRules(data);
     } catch {
       toast({ title: "Failed to load rules", variant: "destructive" });
@@ -55,7 +56,7 @@ export function PerimeterTab({ refreshKey }: { refreshKey: number }) {
     e.preventDefault();
     const fd = new FormData(e.currentTarget);
     try {
-      await fetch('/api/perimeter', {
+      await requestJson('/api/perimeter', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           name: fd.get('name'), direction: fd.get('direction'),
@@ -75,7 +76,7 @@ export function PerimeterTab({ refreshKey }: { refreshKey: number }) {
 
   const deleteRule = async (id: string) => {
     try {
-      await fetch(`/api/perimeter?id=${id}`, { method: 'DELETE' });
+      await requestJson(`/api/perimeter?id=${encodeURIComponent(id)}`, { method: 'DELETE' });
       setRules(rules.filter(r => r.id !== id));
     } catch {
       toast({ title: "Failed to delete rule", variant: "destructive" });

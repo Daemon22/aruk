@@ -28,6 +28,7 @@ model User {
   auditEvents  AuditEvent[]
   passageRules PassageRule[]
   sessions     AuthSession[]
+  vaultFiles   VaultFile[]
 }
 
 // Revocable opaque sessions. Only an HMAC-SHA-256 digest of the bearer token is stored.
@@ -299,4 +300,21 @@ model PassageLog {
   remotePath      String       // Where in the cloud
   sizeBytes       Int          @default(0)
   createdAt       DateTime     @default(now())
+}
+
+// User-owned file contents are encrypted by default before persistence.
+model VaultFile {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name       String
+  mimeType   String   @default("application/octet-stream")
+  sizeBytes  Int
+  payload    String
+  encrypted  Boolean  @default(true)
+  compressed Boolean  @default(false)
+  sha256     String
+  createdAt  DateTime @default(now())
+
+  @@index([userId, createdAt])
 }

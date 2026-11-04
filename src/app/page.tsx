@@ -17,8 +17,11 @@ import {
   Fingerprint,
   Cloud,
   ArrowRightLeft,
+  LogOut,
 } from "lucide-react";
 
+import { AuthPanel, type ArukUser } from "@/components/auth-panel";
+import { requestJson } from "@/lib/client-api";
 import { OverviewTab } from "@/components/api-bank/overview-tab";
 import { VaultTab } from "@/components/api-bank/vault-tab";
 import { LineageTab } from "@/components/api-bank/lineage-tab";
@@ -59,6 +62,8 @@ export default function Home() {
   const [refreshKey, setRefreshKey] = useState(0);
   const [activeTab, setActiveTab] = useState<string>("overview");
   const [hasEntered, setHasEntered] = useState(false);
+  const [authUser, setAuthUser] = useState<ArukUser | null>(null);
+  const [authChecking, setAuthChecking] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   useEffect(() => {
     let cancelled = false;
@@ -77,6 +82,30 @@ export default function Home() {
     void checkHealth();
     const interval = window.setInterval(checkHealth, 30_000);
     return () => { cancelled = true; window.clearInterval(interval); };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/auth/session", { cache: "no-store" })
+      .then(async response => {
+        if (response.status === 401) return null;
+        if (!response.ok) throw new Error("Aruk could not check your session.");
+        const payload = await response.json();
+        return payload && typeof payload === "object" && "user" in payload ? payload.user as ArukUser : null;
+      })
+      .then(user => { if (!cancelled) setAuthUser(user); })
+      .catch(() => { if (!cancelled) setAuthUser(null); })
+      .finally(() => { if (!cancelled) setAuthChecking(false); });
+    return () => { cancelled = true; };
+  }, []);
+
+  const signOut = useCallback(async () => {
+    try {
+      await requestJson("/api/auth/logout", { method: "POST" });
+      setAuthUser(null);
+    } catch (cause) {
+      window.alert(cause instanceof Error ? cause.message : "Aruk could not sign you out.");
+    }
   }, []);
 
   const refresh = useCallback(() => {
@@ -120,6 +149,14 @@ export default function Home() {
     );
   }
 
+  if (authChecking) {
+    return <main className="grid min-h-screen place-items-center text-sm text-muted-foreground">Checking your Aruk session…</main>;
+  }
+
+  if (!authUser) {
+    return <AuthPanel onAuthenticated={user => { setAuthUser(user); setRefreshKey(key => key + 1); }} />;
+  }
+
   // ── Dashboard ───────────────────────────────────────────────
   return (
     <div className="min-h-screen bg-background flex flex-col relative">
@@ -156,7 +193,7 @@ export default function Home() {
             </div>
 
             <div className="hidden sm:flex items-center px-2 py-1 rounded-lg bg-muted/30 border border-border/30 text-[11px] text-muted-foreground">
-              Personal control plane
+              Personal control plane · {authUser.name}
             </div>
 
             <div className="w-px h-5 bg-border/60 mx-0.5" />
@@ -179,6 +216,9 @@ export default function Home() {
               aria-label="Refresh"
             >
               <RefreshCw className={"h-3.5 w-3.5 transition-transform duration-500" + (refreshing ? " animate-spin" : " hover:rotate-180")} />
+            </Button>
+            <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground" onClick={() => void signOut()} aria-label="Sign out" title="Sign out">
+              <LogOut className="h-4 w-4" />
             </Button>
           </div>
         </div>

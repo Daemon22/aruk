@@ -11,6 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Skeleton } from "@/components/ui/skeleton";
 import { ScrollText, Plus, Trash2, ShieldCheck, ShieldX } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { requestArray, requestJson } from "@/lib/client-api";
 
 interface Policy {
   id: string; name: string; description: string | null;
@@ -44,7 +45,7 @@ export function PoliciesTab({ refreshKey }: { refreshKey: number }) {
     try {
       const params = new URLSearchParams();
       if (filterEffect) params.set('effect', filterEffect);
-      const data = await fetch(`/api/policies?${params}`).then(r => r.json());
+      const data = await requestArray<Policy>(`/api/policies?${params}`);
       setPolicies(data); setLoading(false);
     } catch { setLoading(false); }
   };
@@ -55,7 +56,7 @@ export function PoliciesTab({ refreshKey }: { refreshKey: number }) {
     e.preventDefault();
     const fd = new FormData(e.currentTarget);
     try {
-      await fetch('/api/policies', {
+      await requestJson('/api/policies', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           name: fd.get('name'), effect: fd.get('effect'),
@@ -69,16 +70,16 @@ export function PoliciesTab({ refreshKey }: { refreshKey: number }) {
       });
       setOpen(false); load();
     } catch (err) {
-      toast({ title: 'Failed to create policy', description: String(err), variant: 'destructive' });
+      toast({ title: 'Failed to create policy', description: err instanceof Error ? err.message : String(err), variant: 'destructive' });
     }
   };
 
   const deletePolicy = async (id: string) => {
     try {
-      await fetch(`/api/policies?id=${id}`, { method: 'DELETE' });
+      await requestJson(`/api/policies?id=${encodeURIComponent(id)}`, { method: 'DELETE' });
       setPolicies(policies.filter(p => p.id !== id));
     } catch (err) {
-      toast({ title: 'Failed to delete policy', description: String(err), variant: 'destructive' });
+      toast({ title: 'Failed to delete policy', description: err instanceof Error ? err.message : String(err), variant: 'destructive' });
     }
   };
 
