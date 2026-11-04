@@ -46,6 +46,7 @@ interface AuditEntry {
 
 export function OverviewTab({ refreshKey }: { refreshKey: number }) {
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [daemonCount, setDaemonCount] = useState(0);
   const [activePasses, setActivePasses] = useState(0);
   const [policyCount, setPolicyCount] = useState(0);
@@ -57,30 +58,92 @@ export function OverviewTab({ refreshKey }: { refreshKey: number }) {
 
   useEffect(() => {
     let cancelled = false;
-    Promise.all([
-      fetch('/api/daemons').then(r => r.json()).catch(() => []),
-      fetch('/api/passes?status=active').then(r => r.json()).catch(() => []),
-      fetch('/api/policies').then(r => r.json()).catch(() => []),
-      fetch('/api/perimeter').then(r => r.json()).catch(() => []),
-      fetch('/api/audit?stats=true').then(r => r.json()).catch(() => null),
-      fetch('/api/audit?perPage=8').then(r => r.json()).catch(() => ({ events: [] })),
-      fetch('/api/cloud-accounts').then(r => r.json()).catch(() => ({ data: [] })),
-      fetch('/api/offload?stats=true').then(r => r.json()).catch(() => null),
-    ]).then(([daemons, passes, policies, rules, audit, events, clouds, passage]) => {
-      if (!cancelled) {
-        setDaemonCount(daemons.filter((d: any) => d.status === 'active').length);
-        setActivePasses(passes.length);
-        setPolicyCount(policies.length);
-        setPerimeterRules(rules.filter((r: any) => r.status === 'active').length);
-        if (audit) setAuditStats(audit);
-        setRecentEvents(events.events || []);
-        setCloudAccountCount((clouds.data || []).filter((c: any) => c.status === 'active').length);
-        if (passage?.data) setPassageStats(passage.data);
-        setLoading(false);
+    setLoading(true);
+    setLoadError(null);
+
+    const readJson = async (url: string): Promise<unknown> => {
+      const response = await fetch(url, { cache: 'no-store' });
+      const payload: unknown = await response.json().catch(() => null);
+      if (!response.ok) {
+        if (response.status === 401) {
+          throw new Error("Sign in to Aruk to view overview data.");
+        }
+        const apiError =
+          payload && typeof payload === "object" && "error" in payload && typeof payload.error === "string"
+            ? payload.error
+            : "Aruk request failed (" + response.status + ").";
+        throw new Error(apiError);
       }
+      return payload;
+    };
+
+    const readArray = async (url: string): Promise<any[]> => {
+      const payload = await readJson(url);
+      if (!Array.isArray(payload)) {
+        throw new Error("Aruk returned an invalid list response.");
+      }
+      return payload;
+    };
+
+    const readObject = async (url: string): Promise<Record<string, any>> => {
+      const payload = await readJson(url);
+      if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
+        throw new Error("Aruk returned an invalid response.");
+      }
+      return payload as Record<string, any>;
+    };
+
+    Promise.all([
+      readArray('/api/daemons'),
+      readArray('/api/passes?status=active'),
+      readArray('/api/policies'),
+      readArray('/api/perimeter'),
+      readObject('/api/audit?stats=true'),
+      readObject('/api/audit?perPage=8'),
+      readObject('/api/cloud-accounts'),
+      readObject('/api/offload?stats=true'),
+    ]).then(([daemons, passes, policies, rules, audit, events, clouds, passage]) => {
+      if (cancelled) return;
+      setDaemonCount(daemons.filter((d: any) => d?.status === 'active').length);
+      setActivePasses(passes.length);
+      setPolicyCount(policies.length);
+      setPerimeterRules(rules.filter((r: any) => r?.status === 'active').length);
+      setAuditStats(audit as unknown as AuditStats);
+      setRecentEvents(Array.isArray(events.events) ? events.events : []);
+      setCloudAccountCount(
+        Array.isArray(clouds.data)
+          ? clouds.data.filter((c: any) => c?.status === 'active').length
+          : 0,
+      );
+      const passageData = passage.data;
+      setPassageStats(
+        passageData && typeof passageData === "object" && !Array.isArray(passageData)
+          ? passageData as PassageStats
+          : null,
+      );
+    }).catch((error: unknown) => {
+      if (cancelled) return;
+      setLoadError(error instanceof Error ? error.message : "Unable to load overview data.");
+    }).finally(() => {
+      if (!cancelled) setLoading(false);
     });
+
     return () => { cancelled = true; };
   }, [refreshKey]);
+
+  if (loadError) {
+    return (
+      <Card className="rounded-xl border-amber-400/20 bg-[#101512]/75 backdrop-blur-sm">
+        <CardContent className="flex items-start gap-3 p-5">
+          <ShieldAlert className="mt-0.5 h-4 w-4 shrink-0 text-amber-300" />
+          <div>
+            <p className="text-sm font-medium text-foreground">Overview unavailable</p>
+            <p className="mt-1 text-xs text-muted-foreground">{loadError} After access is restored, use Refresh to try again.</p>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
 
   if (loading) {
     return (
