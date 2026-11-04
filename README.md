@@ -11,7 +11,7 @@ See [ARUK_PRODUCTION_READINESS_AUDIT.md](ARUK_PRODUCTION_READINESS_AUDIT.md) for
 
 ## Privacy and credential boundary
 
-Aruk is a private, self-hosted Keeper. API keys, OAuth tokens, passwords,
+Aruk is a private Keeper that can hold independent personal accounts. API keys, OAuth tokens, passwords,
 service-account material, certificates, SSH keys, and cloud-provider
 credentials are encrypted at rest with AES-256-GCM using `ARUK_ENCRYPTION_KEY`.
 Plaintext credentials are released only through an authenticated, policy-gated
@@ -31,6 +31,13 @@ local use; losing the encryption key makes stored credentials unrecoverable,
 and different keys across instances invalidate sessions or prevent decryption.
 Use TLS and a private network or reverse proxy/WAF for network deployments,
 and never put credentials in URLs, source control, exports, or client logs.
+
+Customer-account separation, session lifecycle, and deployment limits are documented in
+[Customer privacy boundary](docs/CUSTOMER_PRIVACY_BOUNDARY.md). Public account creation
+is disabled by default; do not enable it until email verification, account recovery,
+MFA/passkey enrollment, and trusted proxy rate limits are configured. The current supported
+backend is a single Aruk instance with one durable SQLite database, not a horizontally
+scaled shared SaaS service.
 
 ---
 
@@ -100,7 +107,7 @@ cp .env.example .env
 # Push the database schema
 npx prisma db push
 
-# Seed with sample data
+# Seed the shared provider catalog only (no user or vault demo data)
 npx prisma db seed
 
 # Start dev server
@@ -108,6 +115,9 @@ bun dev    # or: npm run dev
 ```
 
 Visit `http://localhost:3000`.
+
+For a production database release, apply checked-in migrations with `bun run db:migrate:deploy`
+before starting the new application version. Do not use `db:push` against customer data.
 
 ### Web (Docker)
 
@@ -189,6 +199,15 @@ curl -X POST http://localhost:3000/api/agent \
 | `get_secret` | Retrieve vault credentials by purpose |
 | `list_secrets` | List all vault secrets |
 | `add_secret` | Add a new secret to the vault |
+
+### Account sessions
+
+The backend exposes `POST /api/auth/register` (disabled unless `ARUK_ALLOW_PUBLIC_SIGNUP=true`),
+`POST /api/auth/login`, `POST /api/auth/logout`, and `GET /api/auth/session`. Sessions are
+revocable and user-scoped. Login returns an opaque bearer token for SDK/agent clients and sets
+an HttpOnly session cookie for the application; clients must keep bearer tokens in protected
+storage and send them only in the `Authorization` header. Account recovery, email verification,
+and MFA are not implemented; public registration must remain disabled until those flows are ready.
 
 ---
 

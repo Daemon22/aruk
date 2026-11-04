@@ -7,10 +7,9 @@
 #   docker compose down            # Stop
 #   docker compose up -d --build  # Rebuild and restart
 #
-# On first run, Aruk generates a session secret and an encryption
-# key and persists them into the aruk-data volume. To use your own
-# instead (recommended for backups/multi-instance setups), copy
-# .env.example to .env and set ARUK_SESSION_SECRET / ARUK_ENCRYPTION_KEY.
+# Copy .env.example to .env and set both cryptographic keys before
+# starting this production container. The service refuses to start
+# without them so sessions and encrypted credentials remain stable.
 # ============================================================
 
 services:
@@ -24,13 +23,9 @@ services:
       - DATABASE_URL=file:/app/data/aruk.db
       - APIBANK_URL=http://localhost:3000
       - NEXT_TELEMETRY_DISABLED=1
-      # Recommended — if unset, Aruk generates one on first run and
-      # persists it to the aruk-data volume, so it survives restarts.
-      # Set these explicitly if you want a portable/rotatable secret
-      # (e.g. for backups or scaling to multiple instances).
-      # Generate with: openssl rand -hex 32
-      - ARUK_SESSION_SECRET=${ARUK_SESSION_SECRET:-}
-      - ARUK_ENCRYPTION_KEY=${ARUK_ENCRYPTION_KEY:-}
+      - ARUK_SESSION_SECRET=${ARUK_SESSION_SECRET:?Set ARUK_SESSION_SECRET in .env}
+      - ARUK_ENCRYPTION_KEY=${ARUK_ENCRYPTION_KEY:?Set ARUK_ENCRYPTION_KEY in .env}
+      - ARUK_ALLOW_PUBLIC_SIGNUP=${ARUK_ALLOW_PUBLIC_SIGNUP:-false}
     volumes:
       - aruk-data:/app/data
     healthcheck:
