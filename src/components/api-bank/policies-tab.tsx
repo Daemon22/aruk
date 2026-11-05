@@ -11,6 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Skeleton } from "@/components/ui/skeleton";
 import { ScrollText, Plus, Trash2, ShieldCheck, ShieldX } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { requestArray, requestJson } from "@/lib/client-api";
 
 interface Policy {
   id: string; name: string; description: string | null;
@@ -36,6 +37,7 @@ const SCOPE_STYLE: Record<string, string> = {
 export function PoliciesTab({ refreshKey }: { refreshKey: number }) {
   const [policies, setPolicies] = useState<Policy[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
   const [filterEffect, setFilterEffect] = useState<string>('');
   const { toast } = useToast();
@@ -44,9 +46,14 @@ export function PoliciesTab({ refreshKey }: { refreshKey: number }) {
     try {
       const params = new URLSearchParams();
       if (filterEffect) params.set('effect', filterEffect);
-      const data = await fetch(`/api/policies?${params}`).then(r => r.json());
-      setPolicies(data); setLoading(false);
-    } catch { setLoading(false); }
+      const data = await requestArray<Policy>(`/api/policies?${params}`);
+      setPolicies(data);
+      setLoadError(null);
+    } catch (error) {
+      setLoadError(error instanceof Error ? error.message : 'Unable to load policies.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => { load(); }, [refreshKey, filterEffect]);
@@ -55,7 +62,7 @@ export function PoliciesTab({ refreshKey }: { refreshKey: number }) {
     e.preventDefault();
     const fd = new FormData(e.currentTarget);
     try {
-      await fetch('/api/policies', {
+      await requestJson('/api/policies', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           name: fd.get('name'), effect: fd.get('effect'),
@@ -69,16 +76,16 @@ export function PoliciesTab({ refreshKey }: { refreshKey: number }) {
       });
       setOpen(false); load();
     } catch (err) {
-      toast({ title: 'Failed to create policy', description: String(err), variant: 'destructive' });
+      toast({ title: 'Failed to create policy', description: err instanceof Error ? err.message : String(err), variant: 'destructive' });
     }
   };
 
   const deletePolicy = async (id: string) => {
     try {
-      await fetch(`/api/policies?id=${id}`, { method: 'DELETE' });
+      await requestJson(`/api/policies?id=${encodeURIComponent(id)}`, { method: 'DELETE' });
       setPolicies(policies.filter(p => p.id !== id));
     } catch (err) {
-      toast({ title: 'Failed to delete policy', description: String(err), variant: 'destructive' });
+      toast({ title: 'Failed to delete policy', description: err instanceof Error ? err.message : String(err), variant: 'destructive' });
     }
   };
 
@@ -178,7 +185,8 @@ export function PoliciesTab({ refreshKey }: { refreshKey: number }) {
         </div>
       </div>
 
-      {policies.length === 0 ? (
+      {loadError && <p role="alert" className="text-sm text-destructive">{loadError}</p>}
+      {policies.length === 0 ? (loadError ? null : (
         <Card className="rounded-xl border-dashed border-border/60">
           <CardContent className="py-16 text-center">
             <ScrollText className="h-8 w-8 text-muted-foreground/40 mx-auto mb-3" />
@@ -186,7 +194,7 @@ export function PoliciesTab({ refreshKey }: { refreshKey: number }) {
             <p className="text-xs text-muted-foreground/60 mt-1">Without policies, Aruk defaults to allow-all. Define rules to enforce the perimeter.</p>
           </CardContent>
         </Card>
-      ) : (
+      )) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 stagger-children">
           {policies.map(p => {
             const cfg = effectCfg(p.effect);

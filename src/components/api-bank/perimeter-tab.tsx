@@ -11,6 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Skeleton } from "@/components/ui/skeleton";
 import { ShieldCheck, Plus, ArrowUpRight, ArrowDownLeft, ArrowLeftRight, Trash2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { requestArray, requestJson } from "@/lib/client-api";
 
 interface PassageRule {
   id: string; name: string; direction: string; description: string | null;
@@ -33,6 +34,7 @@ const ACTION_COLOR: Record<string, string> = {
 export function PerimeterTab({ refreshKey }: { refreshKey: number }) {
   const [rules, setRules] = useState<PassageRule[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
   const [filterDir, setFilterDir] = useState<string>('');
   const { toast } = useToast();
@@ -40,9 +42,11 @@ export function PerimeterTab({ refreshKey }: { refreshKey: number }) {
   const load = async () => {
     try {
       const params = filterDir ? `?direction=${filterDir}` : '';
-      const data = await fetch(`/api/perimeter${params}`).then(r => r.json());
+      const data = await requestArray<PassageRule>(`/api/perimeter${params}`);
       setRules(data);
-    } catch {
+      setLoadError(null);
+    } catch (error) {
+      setLoadError(error instanceof Error ? error.message : 'Unable to load perimeter rules.');
       toast({ title: "Failed to load rules", variant: "destructive" });
     } finally {
       setLoading(false);
@@ -55,7 +59,7 @@ export function PerimeterTab({ refreshKey }: { refreshKey: number }) {
     e.preventDefault();
     const fd = new FormData(e.currentTarget);
     try {
-      await fetch('/api/perimeter', {
+      await requestJson('/api/perimeter', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           name: fd.get('name'), direction: fd.get('direction'),
@@ -75,7 +79,7 @@ export function PerimeterTab({ refreshKey }: { refreshKey: number }) {
 
   const deleteRule = async (id: string) => {
     try {
-      await fetch(`/api/perimeter?id=${id}`, { method: 'DELETE' });
+      await requestJson(`/api/perimeter?id=${encodeURIComponent(id)}`, { method: 'DELETE' });
       setRules(rules.filter(r => r.id !== id));
     } catch {
       toast({ title: "Failed to delete rule", variant: "destructive" });
@@ -146,7 +150,8 @@ export function PerimeterTab({ refreshKey }: { refreshKey: number }) {
         </div>
       </div>
 
-      {rules.length === 0 ? (
+      {loadError && <p role="alert" className="text-sm text-destructive">{loadError}</p>}
+      {rules.length === 0 ? (loadError ? null : (
         <Card className="rounded-xl border-dashed border-border/60">
           <CardContent className="py-16 text-center">
             <ShieldCheck className="h-8 w-8 text-muted-foreground/40 mx-auto mb-3" />
@@ -154,7 +159,7 @@ export function PerimeterTab({ refreshKey }: { refreshKey: number }) {
             <p className="text-xs text-muted-foreground/60 mt-1">Aruk controls what may pass outward and what may return inward.</p>
           </CardContent>
         </Card>
-      ) : (
+      )) : (
         <div className="space-y-2 stagger-children">
           {rules.map(r => {
             const DirIcon = DIR_ICON[r.direction] || ArrowUpRight;

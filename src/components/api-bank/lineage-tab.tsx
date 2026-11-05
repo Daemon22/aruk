@@ -11,6 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Skeleton } from "@/components/ui/skeleton";
 import { GitBranch, Plus, Shield, ChevronRight, Eye, Ban, Crown } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { requestArray, requestJson } from "@/lib/client-api";
 
 interface Daemon {
   id: string; name: string; designation: string; role: string;
@@ -34,25 +35,28 @@ const ROLE_COLORS: Record<string, string> = {
 export function LineageTab({ refreshKey }: { refreshKey: number }) {
   const [daemons, setDaemons] = useState<Daemon[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
     let cancelled = false;
-    fetch('/api/daemons')
-      .then(r => r.json())
-      .then(data => { if (!cancelled) { setDaemons(data); setLoading(false); } })
-      .catch(() => { if (!cancelled) setLoading(false); });
+    setLoading(true);
+    setLoadError(null);
+    requestArray<Daemon>('/api/daemons')
+      .then(data => { if (!cancelled) setDaemons(data); })
+      .catch(error => { if (!cancelled) setLoadError(error instanceof Error ? error.message : 'Unable to load lineage.'); })
+      .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
   }, [refreshKey]);
 
   const registerDaemon = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const fd = new FormData(e.currentTarget);
-    const caps = (fd.get('capabilities') as string)
+    const caps = String(fd.get('capabilities') || '')
       .split(',').map(s => s.trim()).filter(Boolean);
     try {
-      await fetch('/api/daemons', {
+      await requestJson('/api/daemons', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -63,20 +67,22 @@ export function LineageTab({ refreshKey }: { refreshKey: number }) {
         }),
       });
       setOpen(false);
-      const data = await fetch('/api/daemons').then(r => r.json());
+      const data = await requestArray<Daemon>('/api/daemons');
       setDaemons(data);
+      setLoadError(null);
     } catch (err) {
-      toast({ title: 'Failed to register daemon', description: String(err), variant: 'destructive' });
+      toast({ title: 'Failed to register daemon', description: err instanceof Error ? err.message : String(err), variant: 'destructive' });
     }
   };
 
   const revokeDaemon = async (id: string) => {
     try {
-      await fetch(`/api/daemons?id=${id}`, { method: 'DELETE' });
-      const data = await fetch('/api/daemons').then(r => r.json());
+      await requestJson(`/api/daemons?id=${encodeURIComponent(id)}`, { method: 'DELETE' });
+      const data = await requestArray<Daemon>('/api/daemons');
       setDaemons(data);
+      setLoadError(null);
     } catch (err) {
-      toast({ title: 'Failed to revoke daemon', description: String(err), variant: 'destructive' });
+      toast({ title: 'Failed to revoke daemon', description: err instanceof Error ? err.message : String(err), variant: 'destructive' });
     }
   };
 
@@ -127,7 +133,9 @@ export function LineageTab({ refreshKey }: { refreshKey: number }) {
         </Dialog>
       </div>
 
-      {daemons.length === 0 ? (
+      {loadError && <Card role="alert" className="rounded-xl border-amber-400/20"><CardContent className="p-4 text-xs text-amber-200">{loadError}</CardContent></Card>}
+
+      {!loadError && daemons.length === 0 ? (
         <Card className="rounded-xl border-dashed border-border/60">
           <CardContent className="py-16 text-center">
             <Crown className="h-8 w-8 text-muted-foreground/40 mx-auto mb-3" />
@@ -135,7 +143,7 @@ export function LineageTab({ refreshKey }: { refreshKey: number }) {
             <p className="text-xs text-muted-foreground/60 mt-1">Aruk keeps the lineage of all intelligences in the system.</p>
           </CardContent>
         </Card>
-      ) : (
+      ) : !loadError ? (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 stagger-children">
           {daemons.map(d => (
             <Card key={d.id} className={`rounded-xl border-border/50 overflow-hidden card-hover ${d.status === 'revoked' ? 'opacity-50' : ''}`}>
@@ -183,7 +191,7 @@ export function LineageTab({ refreshKey }: { refreshKey: number }) {
             </Card>
           ))}
         </div>
-      )}
+      ) : null}
     </div>
   );
 }

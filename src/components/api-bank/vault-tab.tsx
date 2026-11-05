@@ -42,6 +42,8 @@ import {
   Check,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { requestArray, requestJson } from "@/lib/client-api";
+import { VaultFilesPanel } from "@/components/api-bank/vault-files-panel";
 
 // ─── Types ──────────────────────────────────────────────────
 
@@ -252,7 +254,7 @@ function AddSecretDialog({ onAdded }: { onAdded: () => void }) {
       if (credKey2.trim() && credVal2.trim()) credentials[credKey2.trim()] = credVal2.trim();
       if (credKey3.trim() && credVal3.trim()) credentials[credKey3.trim()] = credVal3.trim();
 
-      await fetch('/api/secrets', {
+      await requestJson('/api/secrets', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -266,8 +268,8 @@ function AddSecretDialog({ onAdded }: { onAdded: () => void }) {
       setName(''); setType(''); setProvider(''); setPurpose('');
       setCredKey1(''); setCredVal1(''); setCredKey2(''); setCredVal2(''); setCredKey3(''); setCredVal3('');
       setNotes(''); setOpen(false); onAdded();
-    } catch {
-      toast({ title: 'Failed to add secret', variant: 'destructive' });
+    } catch (error) {
+      toast({ title: 'Failed to add secret', description: error instanceof Error ? error.message : String(error), variant: 'destructive' });
     } finally { setAdding(false); }
   };
 
@@ -380,10 +382,11 @@ export function VaultTab({ refreshKey, onRefresh }: { refreshKey: number; onRefr
     const params = new URLSearchParams();
     if (filterType !== 'all') params.set('type', filterType);
     if (filterPurpose !== 'all') params.set('purpose', filterPurpose);
-    fetch(`/api/secrets?${params}`)
-      .then(r => r.json())
-      .then(data => { if (!cancelled) { setSecrets(data); setLoading(false); } })
-      .catch(() => { if (!cancelled) setLoading(false); });
+    setLoading(true);
+    requestArray<Secret>(`/api/secrets?${params}`)
+      .then(data => { if (!cancelled) setSecrets(data); })
+      .catch(error => { if (!cancelled) toast({ title: 'Failed to load secrets', description: error instanceof Error ? error.message : String(error), variant: 'destructive' }); })
+      .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
   }, [filterType, filterPurpose]);
 
@@ -396,8 +399,8 @@ export function VaultTab({ refreshKey, onRefresh }: { refreshKey: number; onRefr
       const params = new URLSearchParams();
       if (filterType !== 'all') params.set('type', filterType);
       if (filterPurpose !== 'all') params.set('purpose', filterPurpose);
-      const res = await fetch(`/api/secrets?${params}`);
-      if (res.ok) setSecrets(await res.json());
+      const safe = await requestArray<Secret>(`/api/secrets?${params}`);
+      setSecrets(safe);
       return;
     }
 
@@ -417,9 +420,13 @@ export function VaultTab({ refreshKey, onRefresh }: { refreshKey: number; onRefr
 
   const deleteSecret = async (id: string) => {
     if (!confirm('Delete this secret? This cannot be undone.')) return;
-    await fetch(`/api/secrets?id=${id}`, { method: 'DELETE' });
-    toast({ title: 'Secret deleted' });
-    onRefresh();
+    try {
+      await requestJson(`/api/secrets?id=${encodeURIComponent(id)}`, { method: 'DELETE' });
+      toast({ title: 'Secret deleted' });
+      onRefresh();
+    } catch (error) {
+      toast({ title: 'Failed to delete secret', description: error instanceof Error ? error.message : String(error), variant: 'destructive' });
+    }
   };
 
   const filtered = useMemo(() => {
@@ -442,20 +449,7 @@ export function VaultTab({ refreshKey, onRefresh }: { refreshKey: number; onRefr
 
   return (
     <div className="space-y-4">
-      <section aria-label="Craft Engine archive seal design" className="relative flex flex-col gap-4 overflow-hidden rounded-2xl border border-emerald-400/20 bg-gradient-to-br from-[#101613] via-[#121817] to-[#191529] p-5 shadow-xl sm:flex-row sm:items-center">
-        <div className="pointer-events-none absolute -right-10 -top-16 h-56 w-56 rounded-full bg-emerald-500/10 blur-3xl" />
-        <div className="relative flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-amber-200/20 bg-[#eee5d2] shadow-[0_0_35px_rgba(198,160,87,0.12)]">
-          <img src="/identity/craft-engine-crest.png" alt="Craft Engine archive crest" className="h-full w-full object-contain" />
-        </div>
-        <div className="relative min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-2">
-            <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-amber-200">Craft Engine · Archive seal</p>
-            <Badge variant="outline" className="border-amber-200/25 bg-amber-200/5 text-[9px] uppercase tracking-wider text-amber-100">Integration pending</Badge>
-          </div>
-          <h2 className="mt-1 font-serif text-xl text-stone-100">Sealed only after every check.</h2>
-          <p className="mt-1 max-w-3xl text-xs leading-5 text-muted-foreground">The crest belongs to the pack → encrypt → self-verify → fixity-record flow. This is the design reference; it does not report a live archive result.</p>
-        </div>
-      </section>
+      <VaultFilesPanel refreshKey={refreshKey} />
       {/* Header */}
       <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between">
         <div className="flex gap-2 items-center w-full sm:w-auto flex-wrap">

@@ -11,6 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Skeleton } from "@/components/ui/skeleton";
 import { ArrowUpFromLine, ArrowDownFromLine, Plus, Search, ArrowRightLeft } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { requestJson } from "@/lib/client-api";
 
 interface PassageLog {
   id: string;
@@ -58,16 +59,13 @@ export function PassageTab({ refreshKey, onRefresh }: { refreshKey: number; onRe
     setLoading(true);
     try {
       const [logRes, statsRes, cloudRes] = await Promise.all([
-        fetch('/api/offload'),
-        fetch('/api/offload?stats=true'),
-        fetch('/api/cloud-accounts'),
+        requestJson<{ data?: unknown }>('/api/offload'),
+        requestJson<{ data?: unknown }>('/api/offload?stats=true'),
+        requestJson<{ data?: unknown }>('/api/cloud-accounts'),
       ]);
-      const logJson = await logRes.json();
-      const statsJson = await statsRes.json();
-      const cloudJson = await cloudRes.json();
-      setLogs(logJson.data?.logs || []);
-      setStats(statsJson.data || null);
-      setCloudAccounts(cloudJson.data || []);
+      setLogs(logRes.data && typeof logRes.data === 'object' && 'logs' in logRes.data && Array.isArray(logRes.data.logs) ? logRes.data.logs as PassageLog[] : []);
+      setStats(statsRes.data && typeof statsRes.data === 'object' ? statsRes.data as { total: number; outbound: number; inbound: number; totalBytes: number } : null);
+      setCloudAccounts(Array.isArray(cloudRes.data) ? cloudRes.data as CloudAccount[] : []);
     } catch {
       toast({ title: 'Failed to load passage data', variant: 'destructive' });
     } finally {
@@ -81,7 +79,7 @@ export function PassageTab({ refreshKey, onRefresh }: { refreshKey: number; onRe
     e.preventDefault();
     const fd = new FormData(e.currentTarget);
     try {
-      await fetch('/api/offload', {
+      await requestJson('/api/offload', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -120,7 +118,7 @@ export function PassageTab({ refreshKey, onRefresh }: { refreshKey: number; onRe
             <ArrowRightLeft className="h-4 w-4 text-brand" /> Passage Log
           </h2>
           <p className="text-xs text-muted-foreground mt-1">
-            WHO sent data WHERE, and WHEN. Aruk is the intermediary — he does not record what the data is.
+            Append-only record of who moved data, where, and when. This logs transfer details only; it does not move or store those bytes. Use Vault → Private files for files stored inside Aruk.
           </p>
         </div>
         <Dialog open={open} onOpenChange={setOpen}>

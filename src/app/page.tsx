@@ -17,8 +17,14 @@ import {
   Fingerprint,
   Cloud,
   ArrowRightLeft,
+  LogOut,
+  UserRound,
 } from "lucide-react";
 
+import { AuthPanel, type ArukUser } from "@/components/auth-panel";
+import { AccountTab } from "@/components/account-tab";
+import { requestJson } from "@/lib/client-api";
+import { authClient } from "@/lib/auth-client";
 import { OverviewTab } from "@/components/api-bank/overview-tab";
 import { VaultTab } from "@/components/api-bank/vault-tab";
 import { LineageTab } from "@/components/api-bank/lineage-tab";
@@ -39,6 +45,7 @@ const TAB_KEYS = [
   "audit",
   "clouds",
   "passage",
+  "account",
 ] as const;
 
 const TAB_CONFIG = [
@@ -51,6 +58,7 @@ const TAB_CONFIG = [
   { value: "audit",     label: "Audit",     icon: ScrollText },
   { value: "clouds",    label: "Clouds",    icon: Cloud },
   { value: "passage",   label: "Passage",   icon: ArrowRightLeft },
+  { value: "account",   label: "Account",   icon: UserRound },
 ] as const;
 
 export default function Home() {
@@ -59,7 +67,13 @@ export default function Home() {
   const [refreshKey, setRefreshKey] = useState(0);
   const [activeTab, setActiveTab] = useState<string>("overview");
   const [hasEntered, setHasEntered] = useState(false);
+  const [authUser, setAuthUser] = useState<ArukUser | null>(null);
+  const [authChecking, setAuthChecking] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+
+  useEffect(() => {
+    if (window.sessionStorage.getItem("aruk:entered") === "true") setHasEntered(true);
+  }, []);
   useEffect(() => {
     let cancelled = false;
     const checkHealth = async () => {
@@ -77,6 +91,44 @@ export default function Home() {
     void checkHealth();
     const interval = window.setInterval(checkHealth, 30_000);
     return () => { cancelled = true; window.clearInterval(interval); };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    authClient.getSession()
+      .then(({ data, error }) => {
+        if (error) throw new Error("Aruk could not check your session.");
+        return data?.user ? data.user as ArukUser : null;
+      })
+      .then(user => { if (!cancelled) setAuthUser(user); })
+      .catch(() => { if (!cancelled) setAuthUser(null); })
+      .finally(() => { if (!cancelled) setAuthChecking(false); });
+    return () => { cancelled = true; };
+  }, []);
+
+  const signOut = useCallback(async () => {
+    try {
+      const result = await authClient.signOut();
+      if (result.error) throw new Error(result.error.message);
+      setAuthUser(null);
+    } catch (cause) {
+      window.alert(cause instanceof Error ? cause.message : "Aruk could not sign you out.");
+    }
+  }, []);
+
+  const handleAuthenticated = useCallback((user: ArukUser) => {
+    setAuthUser(user);
+    setRefreshKey(key => key + 1);
+  }, []);
+
+  const handleAccountDeleted = useCallback(() => {
+    setAuthUser(null);
+    setRefreshKey(key => key + 1);
+  }, []);
+
+  useEffect(() => {
+    const requestedTab = new URLSearchParams(window.location.search).get("tab");
+    if (requestedTab && TAB_KEYS.includes(requestedTab as typeof TAB_KEYS[number])) setActiveTab(requestedTab);
   }, []);
 
   const refresh = useCallback(() => {
@@ -113,11 +165,19 @@ export default function Home() {
           <div className="flex flex-wrap items-center justify-center gap-3">
             <img src="/identity/aruk-mark.jpg" alt="" className="h-10 w-10 rounded-xl bg-[#eee5d2] object-cover" />
             <span className="font-serif text-xs tracking-[0.18em] text-stone-200">ARUKEL <span className="ml-1 text-[9px] tracking-[0.12em] text-stone-500">THE KEEPER</span></span>
-            <Button onClick={() => setHasEntered(true)} className="border border-amber-200/40 bg-gradient-to-br from-amber-600 to-amber-900 text-amber-50 shadow-lg hover:brightness-110">Open workspace <span aria-hidden="true" className="ml-2">→</span></Button>
+            <Button onClick={() => { window.sessionStorage.setItem("aruk:entered", "true"); setHasEntered(true); }} className="border border-amber-200/40 bg-gradient-to-br from-amber-600 to-amber-900 text-amber-50 shadow-lg hover:brightness-110">Open workspace <span aria-hidden="true" className="ml-2">→</span></Button>
           </div>
         </div>
       </main>
     );
+  }
+
+  if (authChecking) {
+    return <main className="grid min-h-screen place-items-center text-sm text-muted-foreground">Checking your Aruk session…</main>;
+  }
+
+  if (!authUser) {
+    return <AuthPanel onAuthenticated={handleAuthenticated} />;
   }
 
   // ── Dashboard ───────────────────────────────────────────────
@@ -156,7 +216,7 @@ export default function Home() {
             </div>
 
             <div className="hidden sm:flex items-center px-2 py-1 rounded-lg bg-muted/30 border border-border/30 text-[11px] text-muted-foreground">
-              Personal control plane
+              Personal control plane · {authUser.name}
             </div>
 
             <div className="w-px h-5 bg-border/60 mx-0.5" />
@@ -179,6 +239,9 @@ export default function Home() {
               aria-label="Refresh"
             >
               <RefreshCw className={"h-3.5 w-3.5 transition-transform duration-500" + (refreshing ? " animate-spin" : " hover:rotate-180")} />
+            </Button>
+            <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground" onClick={() => void signOut()} aria-label="Sign out" title="Sign out">
+              <LogOut className="h-4 w-4" />
             </Button>
           </div>
         </div>
@@ -227,6 +290,9 @@ export default function Home() {
             </TabsContent>
             <TabsContent value="passage" className="mt-0">
               <PassageTab refreshKey={refreshKey} />
+            </TabsContent>
+            <TabsContent value="account" className="mt-0">
+              <AccountTab user={authUser} onDeleted={handleAccountDeleted} />
             </TabsContent>
           </div>
         </Tabs>
