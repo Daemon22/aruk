@@ -69,6 +69,7 @@ export function LineageTab({ refreshKey }: { refreshKey: number }) {
       setOpen(false);
       const data = await requestArray<Daemon>('/api/daemons');
       setDaemons(data);
+      setLoadError(null);
     } catch (err) {
       toast({ title: 'Failed to register daemon', description: err instanceof Error ? err.message : String(err), variant: 'destructive' });
     }
@@ -79,6 +80,7 @@ export function LineageTab({ refreshKey }: { refreshKey: number }) {
       await requestJson(`/api/daemons?id=${encodeURIComponent(id)}`, { method: 'DELETE' });
       const data = await requestArray<Daemon>('/api/daemons');
       setDaemons(data);
+      setLoadError(null);
     } catch (err) {
       toast({ title: 'Failed to revoke daemon', description: err instanceof Error ? err.message : String(err), variant: 'destructive' });
     }

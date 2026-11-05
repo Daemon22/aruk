@@ -1,6 +1,6 @@
 import { createHash } from "crypto";
 import { gzipSync, gunzipSync } from "zlib";
-import { getSession } from "@/lib/auth";
+import { getSession, hasTrustedOrigin } from "@/lib/auth";
 import { decryptBytes, encryptBytes } from "@/lib/crypto";
 import { db } from "@/lib/db";
 import { NextRequest, NextResponse } from "next/server";
@@ -63,6 +63,9 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
+  if (!hasTrustedOrigin(req)) {
+    return NextResponse.json({ error: "Untrusted request origin." }, { status: 403 });
+  }
   const user = await getSession(req);
   if (!user) return NextResponse.json({ error: "Sign in to store files." }, { status: 401 });
 
@@ -73,7 +76,29 @@ export async function POST(req: NextRequest) {
 
   let form: FormData;
   try {
-    form = await req.formData();
+    // Count actual bytes before handing the body to the multipart parser.
+    const reader = req.body?.getReader();
+    const chunks: Uint8Array[] = [];
+    let size = 0;
+    if (reader) {
+      try {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          size += value.byteLength;
+          if (size > MAX_REQUEST_BYTES) {
+            void reader.cancel().catch(() => {});
+            return NextResponse.json({ error: "Files must be 8 MB or smaller." }, { status: 413 });
+          }
+          chunks.push(value);
+        }
+      } finally {
+        reader.releaseLock();
+      }
+    }
+    form = await new Response(Buffer.concat(chunks), {
+      headers: { "Content-Type": req.headers.get("content-type") || "" },
+    }).formData();
   } catch {
     return NextResponse.json({ error: "Choose a valid file to store." }, { status: 400 });
   }
@@ -81,7 +106,11 @@ export async function POST(req: NextRequest) {
   if (!(input instanceof File)) return NextResponse.json({ error: "Choose a file first." }, { status: 400 });
   if (input.size > MAX_FILE_BYTES) return NextResponse.json({ error: "Files must be 8 MB or smaller." }, { status: 413 });
 
-  const encrypted = form.get("encrypt") === "true";
+  const encrypt = form.get("encrypt");
+  if (encrypt !== null && encrypt !== "true" && encrypt !== "false") {
+    return NextResponse.json({ error: "Encrypt must be true or false." }, { status: 400 });
+  }
+  const encrypted = encrypt !== "false";
   const compressed = form.get("compress") === "true";
   const original = Buffer.from(await input.arrayBuffer());
   const packed = compressed ? gzipSync(original) : original;
