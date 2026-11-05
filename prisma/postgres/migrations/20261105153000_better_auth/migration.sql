@@ -119,3 +119,23 @@ ALTER TABLE "TwoFactor" ADD CONSTRAINT "TwoFactor_userId_fkey" FOREIGN KEY ("use
 
 -- AddForeignKey
 ALTER TABLE "Passkey" ADD CONSTRAINT "Passkey_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- Application access uses the database owner; public Data API roles have no access.
+ALTER TABLE "Session" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "Account" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "Verification" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "TwoFactor" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "Passkey" ENABLE ROW LEVEL SECURITY;
+DO $$
+DECLARE api_role text;
+BEGIN
+  FOREACH api_role IN ARRAY ARRAY['anon', 'authenticated'] LOOP
+    IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = api_role) THEN
+      EXECUTE format('REVOKE ALL ON TABLE "Session" FROM %I', api_role);
+      EXECUTE format('REVOKE ALL ON TABLE "Account" FROM %I', api_role);
+      EXECUTE format('REVOKE ALL ON TABLE "Verification" FROM %I', api_role);
+      EXECUTE format('REVOKE ALL ON TABLE "TwoFactor" FROM %I', api_role);
+      EXECUTE format('REVOKE ALL ON TABLE "Passkey" FROM %I', api_role);
+    END IF;
+  END LOOP;
+END $$;

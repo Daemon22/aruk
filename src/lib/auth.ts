@@ -1,3 +1,4 @@
+import { after } from "next/server";
 import { betterAuth } from "better-auth/minimal";
 import { nextCookies } from "better-auth/next-js";
 import { bearer, twoFactor } from "better-auth/plugins";
@@ -21,7 +22,7 @@ const trustedOrigins = Array.from(new Set([
 ]));
 
 const secret = process.env.BETTER_AUTH_SECRET
-  || (process.env.NODE_ENV === "production" ? "" : resolveOrPersistSecret("BETTER_AUTH_SECRET", ".aruk-session-secret").value);
+  || (process.env.NODE_ENV === "production" && process.env.NEXT_PHASE !== "phase-production-build" ? "" : resolveOrPersistSecret("BETTER_AUTH_SECRET", ".aruk-session-secret").value);
 if (!secret || secret.length < 32) {
   throw new Error("Set BETTER_AUTH_SECRET to a random value of at least 32 characters.");
 }
@@ -45,12 +46,12 @@ export const auth = betterAuth({
     maxPasswordLength: 128,
     revokeSessionsOnPasswordReset: true,
     sendResetPassword: async ({ user, url }) => {
-      await sendAuthEmail({
+      after(() => sendAuthEmail({
         to: user.email,
         subject: "Reset your Aruk password",
         message: "Use this one-time link to choose a new password.",
         url,
-      });
+      }).catch((error: unknown) => console.error("[aruk] auth email failed:", error instanceof Error ? error.message : error)));
     },
   },
   emailVerification: {
@@ -58,12 +59,12 @@ export const auth = betterAuth({
     autoSignInAfterVerification: true,
     expiresIn: 60 * 60,
     sendVerificationEmail: async ({ user, url }) => {
-      await sendAuthEmail({
+      after(() => sendAuthEmail({
         to: user.email,
         subject: "Verify your Aruk email",
         message: "Verify your email address to finish creating your Aruk account.",
         url,
-      });
+      }).catch((error: unknown) => console.error("[aruk] auth email failed:", error instanceof Error ? error.message : error)));
     },
   },
   socialProviders: {
@@ -75,6 +76,7 @@ export const auth = betterAuth({
       : {}),
   },
   account: {
+    encryptOAuthTokens: true,
     accountLinking: { enabled: true },
   },
   plugins: [
@@ -88,6 +90,7 @@ export const auth = betterAuth({
     nextCookies(),
   ],
   advanced: {
+    backgroundTasks: { handler: (promise) => { after(() => promise); } },
     useSecureCookies: process.env.NODE_ENV === "production",
   },
 });

@@ -85,7 +85,7 @@ export function AuthPanel({ onAuthenticated }: { onAuthenticated: (user: ArukUse
     try {
       if (mode === "mfa") {
         const code = String(values.get("code") || "").replace(/\s/g, "");
-        if (!/^\d{6,8}$/.test(code)) throw new Error("Enter the current authenticator or backup code.");
+        if (useBackupCode ? !code : !/^\d{6,8}$/.test(code)) throw new Error("Enter the current authenticator or backup code.");
         const result = useBackupCode
           ? await authClient.twoFactor.verifyBackupCode({ code, trustDevice: true })
           : await authClient.twoFactor.verifyTotp({ code, trustDevice: true });
@@ -154,6 +154,7 @@ export function AuthPanel({ onAuthenticated }: { onAuthenticated: (user: ArukUse
       const result = await authClient.signIn.social({
         provider,
         requestSignUp: mode === "register",
+        errorCallbackURL: window.location.origin + "/?auth_error=oauth",
         callbackURL: window.location.origin + "/",
         newUserCallbackURL: window.location.origin + "/",
       });

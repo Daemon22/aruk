@@ -33,17 +33,21 @@ const ACTION_COLOR: Record<string, string> = {
 
 export function PerimeterTab({ refreshKey }: { refreshKey: number }) {
   const [rules, setRules] = useState<PassageRule[]>([]);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
   const [filterDir, setFilterDir] = useState<string>('');
   const { toast } = useToast();
 
   const load = async () => {
+    setLoading(true);
     try {
       const params = filterDir ? `?direction=${filterDir}` : '';
       const data = await requestArray<PassageRule>(`/api/perimeter${params}`);
       setRules(data);
+      setLoadError(null);
     } catch {
+      setLoadError("Unable to load perimeter rules. Please try again.");
       toast({ title: "Failed to load rules", variant: "destructive" });
     } finally {
       setLoading(false);
@@ -87,6 +91,7 @@ export function PerimeterTab({ refreshKey }: { refreshKey: number }) {
 
   return (
     <div className="space-y-5">
+      {loadError && <p role="alert" className="text-sm text-red-400">{loadError}</p>}
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-sm font-semibold flex items-center gap-2">
@@ -147,7 +152,7 @@ export function PerimeterTab({ refreshKey }: { refreshKey: number }) {
         </div>
       </div>
 
-      {rules.length === 0 ? (
+      {rules.length === 0 ? (loadError ? null : (
         <Card className="rounded-xl border-dashed border-border/60">
           <CardContent className="py-16 text-center">
             <ShieldCheck className="h-8 w-8 text-muted-foreground/40 mx-auto mb-3" />
@@ -155,7 +160,7 @@ export function PerimeterTab({ refreshKey }: { refreshKey: number }) {
             <p className="text-xs text-muted-foreground/60 mt-1">Aruk controls what may pass outward and what may return inward.</p>
           </CardContent>
         </Card>
-      ) : (
+      )) : (
         <div className="space-y-2 stagger-children">
           {rules.map(r => {
             const DirIcon = DIR_ICON[r.direction] || ArrowUpRight;

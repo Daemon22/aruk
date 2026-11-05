@@ -11,7 +11,7 @@ import { authClient } from "@/lib/auth-client";
 
 export default function ResetPasswordPage() {
   const router = useRouter();
-  const [token, setToken] = useState<string | null>(null);
+  const [token, setToken] = useState<string | null | undefined>(undefined);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [complete, setComplete] = useState(false);
@@ -65,12 +65,17 @@ export default function ResetPasswordPage() {
               <p role="status" className="text-sm text-emerald-400">Your password has been changed. Sign in with the new password.</p>
               <Button className="w-full" onClick={() => router.push("/")}>Return to Aruk</Button>
             </div>
+          ) : token !== undefined && !token ? (
+            <div className="space-y-4">
+              <p role="alert">This password reset link is missing or expired. Request a new one from the sign-in screen.</p>
+              <Button onClick={() => router.push("/")}>Back to sign-in</Button>
+            </div>
           ) : (
             <form onSubmit={submit} className="space-y-4">
               <div className="space-y-2"><Label htmlFor="password">New password</Label><Input id="password" name="password" type="password" autoComplete="new-password" minLength={12} maxLength={128} required /></div>
               <div className="space-y-2"><Label htmlFor="confirm">Confirm password</Label><Input id="confirm" name="confirm" type="password" autoComplete="new-password" minLength={12} maxLength={128} required /></div>
               {error && <p role="alert" className="rounded-lg border border-red-500/25 bg-red-500/5 px-3 py-2 text-xs text-red-300">{error}</p>}
-              <Button type="submit" disabled={busy || token === null} className="w-full">{busy ? "Please wait…" : "Update password"}</Button>
+              <Button type="submit" disabled={busy || !token} className="w-full">{busy ? "Please wait…" : "Update password"}</Button>
             </form>
           )}
         </CardContent>

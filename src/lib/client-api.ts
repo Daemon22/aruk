@@ -1,6 +1,9 @@
 export async function requestJson<T = unknown>(input: RequestInfo | URL, init?: RequestInit): Promise<T> {
   const response = await fetch(input, { cache: "no-store", ...init });
-  const payload: unknown = await response.json().catch(() => null);
+  const payload: unknown = await response.json().catch((error: unknown) => {
+    if (response.ok) throw new Error("Aruk returned an invalid JSON response.", { cause: error });
+    return null;
+  });
 
   if (!response.ok) {
     const message =

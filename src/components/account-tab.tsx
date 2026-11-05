@@ -84,6 +84,7 @@ export function AccountTab({ user, onDeleted }: { user: ArukUser; onDeleted: () 
 
   const linkProvider = (provider: "google" | "github") => run(async () => {
     const result = await authClient.linkSocial({
+      errorCallbackURL: window.location.origin + "/?auth_error=oauth",
       provider,
       callbackURL: window.location.origin + "/?tab=account",
     });
