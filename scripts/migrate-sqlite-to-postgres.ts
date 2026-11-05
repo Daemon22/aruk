@@ -34,31 +34,46 @@ const source = new SQLitePrismaClient({ datasources: { db: { url: sourceUrl } } 
 const destination = new PostgresPrismaClient({ datasources: { db: { url: destinationUrl } } });
 
 async function main() {
-  const existingUsers = await destination.user.count();
-  if (existingUsers !== 0) {
-    throw new Error("The target Postgres database already contains Aruk users. Migration stopped without writing data.");
-  }
-
   let copied = 0;
-  for (const table of tables) {
-    const rows = await source.$queryRawUnsafe<Array<Record<string, unknown>>>('SELECT * FROM "' + table + '"');
-    for (const row of rows) {
-      const values = { ...row };
-      if (table === "User") {
-        values.passwordHash = "";
-        values.authUserId = null;
-      }
-      const columns = Object.keys(values);
-      const identifiers = columns.map((column) => '"' + column.replace(/"/g, '""') + '"').join(", ");
-      const placeholders = columns.map((_, index) => "$" + (index + 1)).join(", ");
-      await destination.$executeRawUnsafe(
-        'INSERT INTO "' + table + '" (' + identifiers + ") VALUES (" + placeholders + ")",
-        ...columns.map((column) => values[column]),
-      );
-      copied += 1;
+  await destination.$transaction(async (transaction) => {
+    const existingUsers = await transaction.user.count();
+    if (existingUsers !== 0) {
+      throw new Error("The target Postgres database already contains Aruk users. Migration stopped without writing data.");
     }
-    console.log(table + ": " + rows.length + " rows");
-  }
+
+    for (const table of tables) {
+      const rows = await source.$queryRawUnsafe<Array<Record<string, unknown>>>('SELECT * FROM "' + table + '"');
+      for (const row of rows) {
+        const values = { ...row };
+        if (table === "User") {
+          values.passwordHash = "";
+          values.authUserId = null;
+        }
+        if (table === "Daemon") {
+          values.parentId = null;
+          values.creatorId = null;
+        }
+        const columns = Object.keys(values);
+        const identifiers = columns.map((column) => '"' + column.replace(/"/g, '""') + '"').join(", ");
+        const placeholders = columns.map((_, index) => "$" + (index + 1)).join(", ");
+        await transaction.$executeRawUnsafe(
+          'INSERT INTO "' + table + '" (' + identifiers + ") VALUES (" + placeholders + ")",
+          ...columns.map((column) => values[column]),
+        );
+        copied += 1;
+      }
+      if (table === "Daemon") {
+        // All daemons now exist, including forward and cyclic lineage references.
+        for (const row of rows) {
+          await transaction.$executeRawUnsafe(
+            'UPDATE "Daemon" SET "parentId" = $1, "creatorId" = $2 WHERE "id" = $3',
+            row.parentId, row.creatorId, row.id,
+          );
+        }
+      }
+      console.log(table + ": " + rows.length + " rows");
+    }
+  }, { timeout: 30 * 60 * 1000 }); // Allow up to 30 minutes for large transfers.
   console.log("Migration complete. " + copied + " rows copied. Local AuthSession rows and password hashes were not transferred.");
 }
 

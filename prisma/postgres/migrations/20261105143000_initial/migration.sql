@@ -364,3 +364,64 @@ ALTER TABLE "PassageLog" ADD CONSTRAINT "PassageLog_cloudAccountId_fkey" FOREIGN
 ALTER TABLE "VaultFile" ADD CONSTRAINT "VaultFile_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- The later Better Auth migration replaces the legacy external-auth identity field.
+
+-- Application tables are accessed through the server database role only.
+ALTER TABLE public."User" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public."AuthSession" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public."Provider" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public."ApiAccount" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public."UsageLog" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public."RoutingEvent" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public."Secret" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public."Daemon" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public."AccessPolicy" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public."AccessPass" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public."AuditEvent" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public."PassageRule" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public."CloudAccount" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public."PassageLog" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public."VaultFile" ENABLE ROW LEVEL SECURITY;
+
+-- Supabase roles may be absent on other PostgreSQL hosts.
+DO $$
+BEGIN
+    IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'anon') THEN
+        REVOKE ALL PRIVILEGES ON TABLE
+            public."User",
+            public."AuthSession",
+            public."Provider",
+            public."ApiAccount",
+            public."UsageLog",
+            public."RoutingEvent",
+            public."Secret",
+            public."Daemon",
+            public."AccessPolicy",
+            public."AccessPass",
+            public."AuditEvent",
+            public."PassageRule",
+            public."CloudAccount",
+            public."PassageLog",
+            public."VaultFile"
+        FROM anon;
+    END IF;
+    IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'authenticated') THEN
+        REVOKE ALL PRIVILEGES ON TABLE
+            public."User",
+            public."AuthSession",
+            public."Provider",
+            public."ApiAccount",
+            public."UsageLog",
+            public."RoutingEvent",
+            public."Secret",
+            public."Daemon",
+            public."AccessPolicy",
+            public."AccessPass",
+            public."AuditEvent",
+            public."PassageRule",
+            public."CloudAccount",
+            public."PassageLog",
+            public."VaultFile"
+        FROM authenticated;
+    END IF;
+END
+$$;
