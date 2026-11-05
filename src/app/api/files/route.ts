@@ -63,7 +63,9 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  if (!hasTrustedOrigin(req)) return NextResponse.json({ error: "Untrusted origin." }, { status: 403 });
+  if (!hasTrustedOrigin(req)) {
+    return NextResponse.json({ error: "Untrusted request origin." }, { status: 403 });
+  }
   const user = await getSession(req);
   if (!user) return NextResponse.json({ error: "Sign in to store files." }, { status: 401 });
 
@@ -74,25 +76,29 @@ export async function POST(req: NextRequest) {
 
   let form: FormData;
   try {
+    // Count actual bytes before handing the body to the multipart parser.
     const reader = req.body?.getReader();
-    if (!reader) throw new Error("Missing body");
     const chunks: Uint8Array[] = [];
-    let total = 0;
-    try {
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        total += value.byteLength;
-        if (total > MAX_REQUEST_BYTES) {
-          await reader.cancel();
-          return NextResponse.json({ error: "Files must be 8 MB or smaller." }, { status: 413 });
+    let size = 0;
+    if (reader) {
+      try {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          size += value.byteLength;
+          if (size > MAX_REQUEST_BYTES) {
+            void reader.cancel().catch(() => {});
+            return NextResponse.json({ error: "Files must be 8 MB or smaller." }, { status: 413 });
+          }
+          chunks.push(value);
         }
-        chunks.push(value);
+      } finally {
+        reader.releaseLock();
       }
-    } finally {
-      reader.releaseLock();
     }
-    form = await new Response(Buffer.concat(chunks), { headers: { "Content-Type": req.headers.get("content-type") || "" } }).formData();
+    form = await new Response(Buffer.concat(chunks), {
+      headers: { "Content-Type": req.headers.get("content-type") || "" },
+    }).formData();
   } catch {
     return NextResponse.json({ error: "Choose a valid file to store." }, { status: 400 });
   }

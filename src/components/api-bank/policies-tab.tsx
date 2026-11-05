@@ -36,23 +36,24 @@ const SCOPE_STYLE: Record<string, string> = {
 
 export function PoliciesTab({ refreshKey }: { refreshKey: number }) {
   const [policies, setPolicies] = useState<Policy[]>([]);
-  const [loadError, setLoadError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
   const [filterEffect, setFilterEffect] = useState<string>('');
   const { toast } = useToast();
 
   const load = async () => {
-    setLoading(true);
     try {
       const params = new URLSearchParams();
       if (filterEffect) params.set('effect', filterEffect);
       const data = await requestArray<Policy>(`/api/policies?${params}`);
       setPolicies(data);
       setLoadError(null);
-    } catch {
-      setLoadError("Unable to load policies. Please try again.");
-    } finally { setLoading(false); }
+    } catch (error) {
+      setLoadError(error instanceof Error ? error.message : 'Unable to load policies.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => { load(); }, [refreshKey, filterEffect]);
@@ -94,7 +95,6 @@ export function PoliciesTab({ refreshKey }: { refreshKey: number }) {
 
   return (
     <div className="space-y-5">
-      {loadError && <p role="alert" className="text-sm text-red-400">{loadError}</p>}
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-sm font-semibold flex items-center gap-2">
@@ -185,6 +185,7 @@ export function PoliciesTab({ refreshKey }: { refreshKey: number }) {
         </div>
       </div>
 
+      {loadError && <p role="alert" className="text-sm text-destructive">{loadError}</p>}
       {policies.length === 0 ? (loadError ? null : (
         <Card className="rounded-xl border-dashed border-border/60">
           <CardContent className="py-16 text-center">
