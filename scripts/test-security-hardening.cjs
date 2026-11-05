@@ -36,7 +36,7 @@ assert(offload.includes('resourceId: cloudAccountId'), 'direct offload API passe
 assert(auth.includes("ARUK_BYPASS_AUTH must not be enabled in production"), 'auth bypass fails closed in production');
 assert(nextConfig.includes('ARUK_CORS_ORIGIN'), 'CORS is no longer wildcard by default');
 assert(nextConfig.includes('X-Aruk-Pass, X-Aruk-Actor, X-Aruk-Role'), 'CORS allows agent gate headers');
-assert(auth.includes("req.headers.get('authorization')"), 'API sessions accept the SDK authorization header');
+assert(auth.includes('req.headers.get("authorization")'), 'API sessions accept the SDK authorization header');
 assert(auth.includes("/^Bearer\\s+([^\\s]+)$/i"), 'bearer authentication uses strict token parsing');
 assert(auth.includes("aruk_session=([^;]+)"), 'cookie session authentication remains supported');
 assert(auth.includes('(!bearerSession || !cookieSession || bearerSession.id !== cookieSession.id)'), 'invalid or conflicting bearer and cookie identities are rejected');

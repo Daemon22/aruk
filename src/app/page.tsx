@@ -18,9 +18,11 @@ import {
   Cloud,
   ArrowRightLeft,
   LogOut,
+  UserRound,
 } from "lucide-react";
 
 import { AuthPanel, type ArukUser } from "@/components/auth-panel";
+import { AccountTab } from "@/components/account-tab";
 import { requestJson } from "@/lib/client-api";
 import { OverviewTab } from "@/components/api-bank/overview-tab";
 import { VaultTab } from "@/components/api-bank/vault-tab";
@@ -42,6 +44,7 @@ const TAB_KEYS = [
   "audit",
   "clouds",
   "passage",
+  "account",
 ] as const;
 
 const TAB_CONFIG = [
@@ -54,6 +57,7 @@ const TAB_CONFIG = [
   { value: "audit",     label: "Audit",     icon: ScrollText },
   { value: "clouds",    label: "Clouds",    icon: Cloud },
   { value: "passage",   label: "Passage",   icon: ArrowRightLeft },
+  { value: "account",   label: "Account",   icon: UserRound },
 ] as const;
 
 export default function Home() {
@@ -108,6 +112,21 @@ export default function Home() {
     }
   }, []);
 
+  const handleAuthenticated = useCallback((user: ArukUser) => {
+    setAuthUser(user);
+    setRefreshKey(key => key + 1);
+  }, []);
+
+  const handleAccountDeleted = useCallback(() => {
+    setAuthUser(null);
+    setRefreshKey(key => key + 1);
+  }, []);
+
+  useEffect(() => {
+    const requestedTab = new URLSearchParams(window.location.search).get("tab");
+    if (requestedTab && TAB_KEYS.includes(requestedTab as typeof TAB_KEYS[number])) setActiveTab(requestedTab);
+  }, []);
+
   const refresh = useCallback(() => {
     setRefreshing(true);
     setRefreshKey((k) => k + 1);
@@ -154,7 +173,7 @@ export default function Home() {
   }
 
   if (!authUser) {
-    return <AuthPanel onAuthenticated={user => { setAuthUser(user); setRefreshKey(key => key + 1); }} />;
+    return <AuthPanel onAuthenticated={handleAuthenticated} />;
   }
 
   // ── Dashboard ───────────────────────────────────────────────
@@ -267,6 +286,9 @@ export default function Home() {
             </TabsContent>
             <TabsContent value="passage" className="mt-0">
               <PassageTab refreshKey={refreshKey} />
+            </TabsContent>
+            <TabsContent value="account" className="mt-0">
+              <AccountTab user={authUser} onDeleted={handleAccountDeleted} />
             </TabsContent>
           </div>
         </Tabs>
