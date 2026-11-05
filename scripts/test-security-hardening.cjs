@@ -38,8 +38,9 @@ assert(nextConfig.includes('ARUK_CORS_ORIGIN'), 'CORS is no longer wildcard by d
 assert(nextConfig.includes('X-Aruk-Pass, X-Aruk-Actor, X-Aruk-Role'), 'CORS allows agent gate headers');
 assert(auth.includes('req.headers.get("authorization")'), 'API sessions accept the SDK authorization header');
 assert(auth.includes("/^Bearer\\s+([^\\s]+)$/i"), 'bearer authentication uses strict token parsing');
-assert(auth.includes("aruk_session=([^;]+)"), 'cookie session authentication remains supported');
-assert(auth.includes('(!bearerSession || !cookieSession || bearerSession.id !== cookieSession.id)'), 'invalid or conflicting bearer and cookie identities are rejected');
+assert(auth.includes('getSessionCookie(req.headers)'), 'Better Auth cookie sessions remain supported');
+assert(auth.includes('cookieSession.user.id !== bearerSession.user.id'), 'conflicting bearer and cookie identities are rejected');
+assert(auth.includes('bearer()'), 'Better Auth issues and accepts session bearer tokens for SDK clients');
 assert(apiBank.includes('async listProviders(userId: string)'), 'provider metadata listing requires a user scope');
 assert(apiBank.includes('where: { id: data.accountId, userId }'), 'usage writes verify account ownership');
 assert(apiBank.includes('async get(id: string, userId: string)'), 'secret retrieval requires a user scope');

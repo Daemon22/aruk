@@ -363,5 +363,4 @@ ALTER TABLE "PassageLog" ADD CONSTRAINT "PassageLog_cloudAccountId_fkey" FOREIGN
 -- AddForeignKey
 ALTER TABLE "VaultFile" ADD CONSTRAINT "VaultFile_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
--- Link app data to the Supabase Auth identity. Deleting that identity cascades to all Aruk-owned rows.
-ALTER TABLE "User" ADD CONSTRAINT "User_authUserId_fkey" FOREIGN KEY ("authUserId") REFERENCES auth.users(id) ON DELETE CASCADE ON UPDATE CASCADE;
+-- The later Better Auth migration replaces the legacy external-auth identity field.

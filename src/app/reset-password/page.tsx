@@ -1,32 +1,36 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { LockKeyhole } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
+import { authClient } from "@/lib/auth-client";
 
 export default function ResetPasswordPage() {
   const router = useRouter();
-  const supabase = createSupabaseBrowserClient();
+  const [token, setToken] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [complete, setComplete] = useState(false);
 
+  useEffect(() => {
+    setToken(new URLSearchParams(window.location.search).get("token"));
+  }, []);
+
   const submit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (!supabase) {
-      setError("Password recovery needs the hosted email service. Configure Supabase for this instance.");
-      return;
-    }
     const form = new FormData(event.currentTarget);
     const password = String(form.get("password") || "");
     const confirm = String(form.get("confirm") || "");
-    if (password.length < 12) {
-      setError("Use at least 12 characters for the new password.");
+    if (!token) {
+      setError("This password reset link is missing or expired. Request a new one from the sign-in screen.");
+      return;
+    }
+    if (password.length < 12 || password.length > 128) {
+      setError("Use a password between 12 and 128 characters.");
       return;
     }
     if (password !== confirm) {
@@ -36,13 +40,15 @@ export default function ResetPasswordPage() {
 
     setBusy(true);
     setError(null);
-    const { error: updateError } = await supabase.auth.updateUser({ password });
-    setBusy(false);
-    if (updateError) {
-      setError(updateError.message);
-      return;
+    try {
+      const result = await authClient.resetPassword({ newPassword: password, token });
+      if (result.error) throw new Error(result.error.message);
+      setComplete(true);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Aruk could not update the password.");
+    } finally {
+      setBusy(false);
     }
-    setComplete(true);
   };
 
   return (
@@ -56,15 +62,15 @@ export default function ResetPasswordPage() {
         <CardContent>
           {complete ? (
             <div className="space-y-4 text-center">
-              <p role="status" className="text-sm text-emerald-300">Your password has been updated.</p>
-              <Button className="w-full" onClick={() => router.replace("/")}>Return to Aruk</Button>
+              <p role="status" className="text-sm text-emerald-400">Your password has been changed. Sign in with the new password.</p>
+              <Button className="w-full" onClick={() => router.push("/")}>Return to Aruk</Button>
             </div>
           ) : (
             <form onSubmit={submit} className="space-y-4">
-              <div className="space-y-2"><Label htmlFor="password">New password</Label><Input id="password" name="password" type="password" autoComplete="new-password" minLength={12} maxLength={256} required /></div>
-              <div className="space-y-2"><Label htmlFor="confirm">Confirm password</Label><Input id="confirm" name="confirm" type="password" autoComplete="new-password" minLength={12} maxLength={256} required /></div>
+              <div className="space-y-2"><Label htmlFor="password">New password</Label><Input id="password" name="password" type="password" autoComplete="new-password" minLength={12} maxLength={128} required /></div>
+              <div className="space-y-2"><Label htmlFor="confirm">Confirm password</Label><Input id="confirm" name="confirm" type="password" autoComplete="new-password" minLength={12} maxLength={128} required /></div>
               {error && <p role="alert" className="rounded-lg border border-red-500/25 bg-red-500/5 px-3 py-2 text-xs text-red-300">{error}</p>}
-              <Button type="submit" disabled={busy} className="w-full">{busy ? "Saving…" : "Update password"}</Button>
+              <Button type="submit" disabled={busy || token === null} className="w-full">{busy ? "Please wait…" : "Update password"}</Button>
             </form>
           )}
         </CardContent>

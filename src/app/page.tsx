@@ -24,6 +24,7 @@ import {
 import { AuthPanel, type ArukUser } from "@/components/auth-panel";
 import { AccountTab } from "@/components/account-tab";
 import { requestJson } from "@/lib/client-api";
+import { authClient } from "@/lib/auth-client";
 import { OverviewTab } from "@/components/api-bank/overview-tab";
 import { VaultTab } from "@/components/api-bank/vault-tab";
 import { LineageTab } from "@/components/api-bank/lineage-tab";
@@ -69,6 +70,10 @@ export default function Home() {
   const [authUser, setAuthUser] = useState<ArukUser | null>(null);
   const [authChecking, setAuthChecking] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+
+  useEffect(() => {
+    if (window.sessionStorage.getItem("aruk:entered") === "true") setHasEntered(true);
+  }, []);
   useEffect(() => {
     let cancelled = false;
     const checkHealth = async () => {
@@ -90,12 +95,10 @@ export default function Home() {
 
   useEffect(() => {
     let cancelled = false;
-    fetch("/api/auth/session", { cache: "no-store" })
-      .then(async response => {
-        if (response.status === 401) return null;
-        if (!response.ok) throw new Error("Aruk could not check your session.");
-        const payload = await response.json();
-        return payload && typeof payload === "object" && "user" in payload ? payload.user as ArukUser : null;
+    authClient.getSession()
+      .then(({ data, error }) => {
+        if (error) throw new Error("Aruk could not check your session.");
+        return data?.user ? data.user as ArukUser : null;
       })
       .then(user => { if (!cancelled) setAuthUser(user); })
       .catch(() => { if (!cancelled) setAuthUser(null); })
@@ -105,7 +108,8 @@ export default function Home() {
 
   const signOut = useCallback(async () => {
     try {
-      await requestJson("/api/auth/logout", { method: "POST" });
+      const result = await authClient.signOut();
+      if (result.error) throw new Error(result.error.message);
       setAuthUser(null);
     } catch (cause) {
       window.alert(cause instanceof Error ? cause.message : "Aruk could not sign you out.");
@@ -161,7 +165,7 @@ export default function Home() {
           <div className="flex flex-wrap items-center justify-center gap-3">
             <img src="/identity/aruk-mark.jpg" alt="" className="h-10 w-10 rounded-xl bg-[#eee5d2] object-cover" />
             <span className="font-serif text-xs tracking-[0.18em] text-stone-200">ARUKEL <span className="ml-1 text-[9px] tracking-[0.12em] text-stone-500">THE KEEPER</span></span>
-            <Button onClick={() => setHasEntered(true)} className="border border-amber-200/40 bg-gradient-to-br from-amber-600 to-amber-900 text-amber-50 shadow-lg hover:brightness-110">Open workspace <span aria-hidden="true" className="ml-2">→</span></Button>
+            <Button onClick={() => { window.sessionStorage.setItem("aruk:entered", "true"); setHasEntered(true); }} className="border border-amber-200/40 bg-gradient-to-br from-amber-600 to-amber-900 text-amber-50 shadow-lg hover:brightness-110">Open workspace <span aria-hidden="true" className="ml-2">→</span></Button>
           </div>
         </div>
       </main>
