@@ -153,7 +153,9 @@ export function AuthPanel({ onAuthenticated }: { onAuthenticated: (user: ArukUse
     try {
       const result = await authClient.signIn.social({
         provider,
+        requestSignUp: mode === "register",
         callbackURL: window.location.origin + "/",
+        newUserCallbackURL: window.location.origin + "/",
       });
       if (result.error) throw new Error(result.error.message);
     } catch (cause) {
@@ -230,10 +232,10 @@ export function AuthPanel({ onAuthenticated }: { onAuthenticated: (user: ArukUse
           {(mode === "login" || mode === "register") && (
             <div className="mt-4 space-y-2 border-t border-border/30 pt-4">
               <Button type="button" variant="outline" disabled={busy || !authConfig.google} className="w-full gap-2" onClick={() => void oauth("google")}>
-                <span className="font-bold text-base">G</span> Continue with Google
+                <span className="font-bold text-base">G</span> {mode === "register" ? "Create account with Google" : "Continue with Google"}
               </Button>
               <Button type="button" variant="outline" disabled={busy || !authConfig.github} className="w-full gap-2" onClick={() => void oauth("github")}>
-                <Github className="h-4 w-4" /> Continue with GitHub
+                <Github className="h-4 w-4" /> {mode === "register" ? "Create account with GitHub" : "Continue with GitHub"}
               </Button>
               {mode === "login" && (
                 <Button type="button" variant="outline" disabled={busy} className="w-full gap-2" onClick={() => void passkey()}>
@@ -241,7 +243,11 @@ export function AuthPanel({ onAuthenticated }: { onAuthenticated: (user: ArukUse
                 </Button>
               )}
               {!authConfig.google && !authConfig.github && (
-                <p className="text-center text-[10px] leading-4 text-muted-foreground">Google and GitHub become available when their OAuth credentials are configured.</p>
+                <p className="text-center text-[10px] leading-4 text-muted-foreground">
+                  {mode === "register"
+                    ? "New users can create an Aruk profile with Google or GitHub when OAuth credentials are configured."
+                    : "Google and GitHub sign-in become available when their OAuth credentials are configured."}
+                </p>
               )}
             </div>
           )}

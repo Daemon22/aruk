@@ -36,6 +36,8 @@ Never use `ARUK_BYPASS_AUTH=true` in production. Keep all secrets out of source 
 
 Email/password sign-up is available and requires email verification. Password recovery sends a one-time reset link. In development, when Resend is not configured, these links are written to the local app server terminal; this is not a production delivery method.
 
+Google and GitHub can create a new Aruk profile on first use or sign a returning user into the matching profile. The account-creation screen labels these actions as account creation; the sign-in screen labels them as continuing to sign in. Google is configured to show its account chooser. Users can connect additional provider identities from Account settings.
+
 To enable Google or GitHub, create OAuth credentials with the provider and add both credentials to the server environment:
 
 | Provider | Environment variables | Callback URL |
