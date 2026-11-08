@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Fingerprint, Github, LockKeyhole, Mail, ShieldCheck } from "lucide-react";
+import { Fingerprint, LockKeyhole, Mail, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -14,15 +14,11 @@ type Mode = "login" | "register" | "recovery" | "mfa";
 type AuthConfig = {
   emailDelivery: boolean;
   developmentEmailLog: boolean;
-  google: boolean;
-  github: boolean;
 };
 
 const defaultAuthConfig: AuthConfig = {
   emailDelivery: false,
   developmentEmailLog: false,
-  google: false,
-  github: false,
 };
 
 export function AuthPanel({ onAuthenticated }: { onAuthenticated: (user: ArukUser) => void }) {
@@ -43,8 +39,6 @@ export function AuthPanel({ onAuthenticated }: { onAuthenticated: (user: ArukUse
         setAuthConfig({
           emailDelivery: config.emailDelivery === true,
           developmentEmailLog: config.developmentEmailLog === true,
-          google: config.google === true,
-          github: config.github === true,
         });
       })
       .catch(() => undefined);
@@ -59,8 +53,6 @@ export function AuthPanel({ onAuthenticated }: { onAuthenticated: (user: ArukUse
       setNotice("Enter your authenticator code or use a one-time backup code.");
     };
     window.addEventListener("aruk:two-factor-required", requestMfa);
-    const authError = new URLSearchParams(window.location.search).get("auth_error");
-    if (authError === "oauth") setError("Google or GitHub sign-in could not be completed.");
     return () => window.removeEventListener("aruk:two-factor-required", requestMfa);
   }, []);
 
@@ -147,24 +139,6 @@ export function AuthPanel({ onAuthenticated }: { onAuthenticated: (user: ArukUse
     }
   };
 
-  const oauth = async (provider: "google" | "github") => {
-    setBusy(true);
-    setError(null);
-    try {
-      const result = await authClient.signIn.social({
-        provider,
-        requestSignUp: mode === "register",
-        errorCallbackURL: window.location.origin + "/?auth_error=oauth",
-        callbackURL: window.location.origin + "/",
-        newUserCallbackURL: window.location.origin + "/",
-      });
-      if (result.error) throw new Error(result.error.message);
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Social sign-in could not be started.");
-      setBusy(false);
-    }
-  };
-
   const passkey = async () => {
     setBusy(true);
     setError(null);
@@ -209,8 +183,7 @@ export function AuthPanel({ onAuthenticated }: { onAuthenticated: (user: ArukUse
             {(mode === "login" || mode === "register") && (
               <div className="space-y-2">
                 <Label htmlFor="password">Password</Label>
-                <Input id="password" name="password" type="password" autoComplete={mode === "login" ? "current-password" : "new-password"} minLength={mode === "register" ? 12 : undefined} maxLength={128} required />
-                {mode === "register" && <p className="text-[11px] text-muted-foreground">Use at least 12 characters.</p>}
+                <Input id="password" name="password" type="password" autoComplete={mode === "login" ? "current-password" : "new-password"} maxLength={128} required />
               </div>
             )}
             {mode === "mfa" && (
@@ -230,26 +203,11 @@ export function AuthPanel({ onAuthenticated }: { onAuthenticated: (user: ArukUse
             </Button>
           </form>
 
-          {(mode === "login" || mode === "register") && (
-            <div className="mt-4 space-y-2 border-t border-border/30 pt-4">
-              <Button type="button" variant="outline" disabled={busy || !authConfig.google} className="w-full gap-2" onClick={() => void oauth("google")}>
-                <span className="font-bold text-base">G</span> {mode === "register" ? "Create account with Google" : "Continue with Google"}
+          {mode === "login" && (
+            <div className="mt-4 border-t border-border/30 pt-4">
+              <Button type="button" variant="outline" disabled={busy} className="w-full gap-2" onClick={() => void passkey()}>
+                <Fingerprint className="h-4 w-4" /> Sign in with a passkey
               </Button>
-              <Button type="button" variant="outline" disabled={busy || !authConfig.github} className="w-full gap-2" onClick={() => void oauth("github")}>
-                <Github className="h-4 w-4" /> {mode === "register" ? "Create account with GitHub" : "Continue with GitHub"}
-              </Button>
-              {mode === "login" && (
-                <Button type="button" variant="outline" disabled={busy} className="w-full gap-2" onClick={() => void passkey()}>
-                  <Fingerprint className="h-4 w-4" /> Sign in with a passkey
-                </Button>
-              )}
-              {!authConfig.google && !authConfig.github && (
-                <p className="text-center text-[10px] leading-4 text-muted-foreground">
-                  {mode === "register"
-                    ? "New users can create an Aruk profile with Google or GitHub when OAuth credentials are configured."
-                    : "Google and GitHub sign-in become available when their OAuth credentials are configured."}
-                </p>
-              )}
             </div>
           )}
 

@@ -8,7 +8,5 @@ export async function GET() {
   return NextResponse.json({
     emailDelivery,
     developmentEmailLog: process.env.NODE_ENV !== "production" && !process.env.RESEND_API_KEY,
-    google: Boolean(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET),
-    github: Boolean(process.env.GITHUB_CLIENT_ID && process.env.GITHUB_CLIENT_SECRET),
   }, { headers: { "Cache-Control": "no-store" } });
 }

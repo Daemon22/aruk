@@ -16,6 +16,7 @@ import {
   ShieldAlert,
   Fingerprint,
   Cloud,
+  Cable,
   ArrowRightLeft,
   LogOut,
   UserRound,
@@ -34,6 +35,7 @@ import { AuditTab } from "@/components/api-bank/audit-tab";
 import { PerimeterTab } from "@/components/api-bank/perimeter-tab";
 import { CloudsTab } from "@/components/api-bank/clouds-tab";
 import { PassageTab } from "@/components/api-bank/passage-tab";
+import { ConnectorsTab } from "@/components/api-bank/connectors-tab";
 
 const TAB_KEYS = [
   "overview",
@@ -44,6 +46,7 @@ const TAB_KEYS = [
   "perimeter",
   "audit",
   "clouds",
+  "connectors",
   "passage",
   "account",
 ] as const;
@@ -57,6 +60,7 @@ const TAB_CONFIG = [
   { value: "perimeter", label: "Perimeter", icon: ShieldAlert },
   { value: "audit",     label: "Audit",     icon: ScrollText },
   { value: "clouds",    label: "Clouds",    icon: Cloud },
+  { value: "connectors",label: "Connectors",icon: Cable },
   { value: "passage",   label: "Passage",   icon: ArrowRightLeft },
   { value: "account",   label: "Account",   icon: UserRound },
 ] as const;
@@ -287,6 +291,9 @@ export default function Home() {
             </TabsContent>
             <TabsContent value="clouds" className="mt-0">
               <CloudsTab refreshKey={refreshKey} />
+            </TabsContent>
+            <TabsContent value="connectors" className="mt-0">
+              <ConnectorsTab />
             </TabsContent>
             <TabsContent value="passage" className="mt-0">
               <PassageTab refreshKey={refreshKey} />

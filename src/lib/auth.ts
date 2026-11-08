@@ -27,11 +27,6 @@ if (!secret || secret.length < 32) {
   throw new Error("Set BETTER_AUTH_SECRET to a random value of at least 32 characters.");
 }
 
-const googleClientId = process.env.GOOGLE_CLIENT_ID;
-const googleClientSecret = process.env.GOOGLE_CLIENT_SECRET;
-const githubClientId = process.env.GITHUB_CLIENT_ID;
-const githubClientSecret = process.env.GITHUB_CLIENT_SECRET;
-
 export const auth = betterAuth({
   appName: "Aruk",
   baseURL,
@@ -42,7 +37,7 @@ export const auth = betterAuth({
     enabled: true,
     requireEmailVerification: true,
     autoSignIn: false,
-    minPasswordLength: 12,
+    minPasswordLength: 1,
     maxPasswordLength: 128,
     revokeSessionsOnPasswordReset: true,
     sendResetPassword: async ({ user, url }) => {
@@ -66,18 +61,6 @@ export const auth = betterAuth({
         url,
       }).catch((error: unknown) => console.error("[aruk] auth email failed:", error instanceof Error ? error.message : error)));
     },
-  },
-  socialProviders: {
-    ...(googleClientId && googleClientSecret
-      ? { google: { clientId: googleClientId, clientSecret: googleClientSecret, prompt: "select_account", disableImplicitSignUp: false } }
-      : {}),
-    ...(githubClientId && githubClientSecret
-      ? { github: { clientId: githubClientId, clientSecret: githubClientSecret, scope: ["read:user", "user:email"], disableImplicitSignUp: false } }
-      : {}),
-  },
-  account: {
-    encryptOAuthTokens: true,
-    accountLinking: { enabled: true },
   },
   plugins: [
     bearer(),
