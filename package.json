@@ -5,7 +5,7 @@
   "description": "Aruk — The immovable protective perimeter",
   "scripts": {
     "dev": "next dev -p 3000",
-    "test": "tsx scripts/test-crypto.ts && tsx scripts/test-secret-bootstrap.ts && node scripts/test-security-hardening.cjs && node scripts/test-upload-and-client.cjs",
+    "test": "tsx scripts/test-crypto.ts && tsx scripts/test-secret-bootstrap.ts && tsx scripts/test-auth-email.ts && node scripts/test-security-hardening.cjs && node scripts/test-upload-and-client.cjs",
     "build": "next build --webpack && node scripts/copy-build-assets.mjs",
     "start": "NODE_ENV=production bun .next/standalone/server.js",
     "lint": "eslint .",

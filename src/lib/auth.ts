@@ -7,7 +7,7 @@ import { getSessionCookie } from "better-auth/cookies";
 import { prismaAdapter } from "@better-auth/prisma-adapter";
 import { db } from "./db";
 import { resolveOrPersistSecret } from "./secret-bootstrap";
-import { sendAuthEmail } from "./auth-email";
+import { getAuthEmailConfig, sendAuthEmail } from "./auth-email";
 
 const databaseUrl = process.env.DATABASE_URL || "file:./db/custom.db";
 const databaseProvider = /^postgres(?:ql)?:\/\//i.test(databaseUrl) ? "postgresql" : "sqlite";
@@ -21,6 +21,11 @@ const trustedOrigins = Array.from(new Set([
     .filter(Boolean),
 ]));
 
+const googleClientId = process.env.GOOGLE_CLIENT_ID?.trim();
+const googleClientSecret = process.env.GOOGLE_CLIENT_SECRET?.trim();
+const githubClientId = process.env.GITHUB_CLIENT_ID?.trim();
+const githubClientSecret = process.env.GITHUB_CLIENT_SECRET?.trim();
+
 const secret = process.env.BETTER_AUTH_SECRET
   || (process.env.NODE_ENV === "production" && process.env.NEXT_PHASE !== "phase-production-build" ? "" : resolveOrPersistSecret("BETTER_AUTH_SECRET", ".aruk-session-secret").value);
 if (!secret || secret.length < 32) {
@@ -33,6 +38,23 @@ export const auth = betterAuth({
   secret,
   database: prismaAdapter(db, { provider: databaseProvider }),
   trustedOrigins,
+  user: {
+    validateUserInfo: ({ source }) => {
+      if (process.env.NODE_ENV === "production"
+        && source.action === "create-user"
+        && source.method === "email-password"
+        && !getAuthEmailConfig().configured) {
+        return {
+          error: "email_delivery_unavailable",
+          errorDescription: "Account email delivery is not configured for this deployment.",
+        };
+      }
+    },
+  },
+  socialProviders: {
+    ...(googleClientId && googleClientSecret ? { google: { clientId: googleClientId, clientSecret: googleClientSecret } } : {}),
+    ...(githubClientId && githubClientSecret ? { github: { clientId: githubClientId, clientSecret: githubClientSecret } } : {}),
+  },
   emailAndPassword: {
     enabled: true,
     requireEmailVerification: true,

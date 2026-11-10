@@ -32,8 +32,9 @@ Use TLS and a trusted reverse proxy with persistent rate limiting for network de
 and never put credentials in URLs, source control, exports, or client logs.
 
 Aruk uses Better Auth for verified email/password accounts, password recovery, optional
-Google/GitHub sign-in, TOTP multi-factor authentication, and passkeys. Hosted deployments
-use Neon Postgres; local development can use SQLite. See [Neon setup](docs/NEON_SETUP.md)
+Google/GitHub sign-in, TOTP multi-factor authentication, and passkeys. Account email is delivered
+through Resend or Postmark while Better Auth remains the owner of Aruk accounts and sessions.
+Hosted deployments use Neon Postgres; local development can use SQLite. See [Neon setup](docs/NEON_SETUP.md)
 and [Customer privacy boundary](docs/CUSTOMER_PRIVACY_BOUNDARY.md) for configuration and
 deployment requirements.
 

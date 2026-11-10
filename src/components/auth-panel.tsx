@@ -11,14 +11,17 @@ import { authClient } from "@/lib/auth-client";
 export type ArukUser = { id: string; email: string; name: string };
 
 type Mode = "login" | "register" | "recovery" | "mfa";
+type SocialProvider = "google" | "github";
 type AuthConfig = {
   emailDelivery: boolean;
   developmentEmailLog: boolean;
+  socialProviders: SocialProvider[];
 };
 
 const defaultAuthConfig: AuthConfig = {
   emailDelivery: false,
   developmentEmailLog: false,
+  socialProviders: [],
 };
 
 export function AuthPanel({ onAuthenticated }: { onAuthenticated: (user: ArukUser) => void }) {
@@ -36,9 +39,13 @@ export function AuthPanel({ onAuthenticated }: { onAuthenticated: (user: ArukUse
       .then((value: unknown) => {
         if (!active || !value || typeof value !== "object") return;
         const config = value as Partial<AuthConfig>;
+        const socialProviders = Array.isArray(config.socialProviders)
+          ? config.socialProviders.filter((provider): provider is SocialProvider => provider === "google" || provider === "github")
+          : [];
         setAuthConfig({
           emailDelivery: config.emailDelivery === true,
           developmentEmailLog: config.developmentEmailLog === true,
+          socialProviders,
         });
       })
       .catch(() => undefined);
@@ -87,12 +94,17 @@ export function AuthPanel({ onAuthenticated }: { onAuthenticated: (user: ArukUse
       }
 
       if (mode === "recovery") {
+        if (!authConfig.emailDelivery && !authConfig.developmentEmailLog) {
+          throw new Error("Account email delivery is not configured for this Aruk deployment.");
+        }
         const result = await authClient.requestPasswordReset({
           email,
           redirectTo: window.location.origin + "/reset-password",
         });
         if (result.error) throw new Error(result.error.message);
-        setNotice("If an Aruk account uses that address, recovery instructions have been sent.");
+        setNotice(authConfig.emailDelivery
+          ? "If an Aruk account uses that address, recovery instructions have been sent."
+          : "If an Aruk account uses that address, the recovery link is printed in the local terminal running Aruk.");
         return;
       }
 
@@ -159,6 +171,24 @@ export function AuthPanel({ onAuthenticated }: { onAuthenticated: (user: ArukUse
     }
   };
 
+  const social = async (provider: SocialProvider) => {
+    setBusy(true);
+    setError(null);
+    setNotice(null);
+    try {
+      const result = await authClient.signIn.social({
+        provider,
+        callbackURL: window.location.origin + "/",
+        errorCallbackURL: window.location.origin + "/",
+      });
+      if (result.error) throw new Error(result.error.message);
+      setNotice(`Redirecting to ${provider === "google" ? "Google" : "GitHub"}…`);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Social sign-in failed.");
+      setBusy(false);
+    }
+  };
+
   const title = mode === "register" ? "Create an Aruk account"
     : mode === "recovery" ? "Recover your account"
     : mode === "mfa" ? "Verify your identity"
@@ -202,6 +232,17 @@ export function AuthPanel({ onAuthenticated }: { onAuthenticated: (user: ArukUse
               {busy ? "Please wait…" : mode === "login" ? "Sign in securely" : mode === "register" ? "Create account" : mode === "recovery" ? "Send recovery email" : "Verify code"}
             </Button>
           </form>
+
+          {(mode === "login" || mode === "register") && authConfig.socialProviders.length > 0 && (
+            <div className="mt-4 space-y-2 border-t border-border/30 pt-4">
+              <p className="text-center text-[11px] uppercase tracking-[0.18em] text-muted-foreground">or continue with</p>
+              {authConfig.socialProviders.map((provider) => (
+                <Button key={provider} type="button" variant="outline" disabled={busy} className="w-full" onClick={() => void social(provider)}>
+                  Continue with {provider === "google" ? "Google" : "GitHub"}
+                </Button>
+              ))}
+            </div>
+          )}
 
           {mode === "login" && (
             <div className="mt-4 border-t border-border/30 pt-4">

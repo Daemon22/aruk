@@ -14,6 +14,8 @@ const keeper = read('src/lib/keeper/index.ts');
 const secrets = read('src/app/api/secrets/route.ts');
 const offload = read('src/app/api/offload/route.ts');
 const auth = read('src/lib/auth.ts');
+const authEmail = read('src/lib/auth-email.ts');
+const authPanel = read('src/components/auth-panel.tsx');
 const health = read('src/app/api/health/route.ts');
 const nextConfig = read('next.config.ts');
 
@@ -41,6 +43,12 @@ assert(auth.includes("/^Bearer\\s+([^\\s]+)$/i"), 'bearer authentication uses st
 assert(auth.includes('getSessionCookie(req.headers)'), 'Better Auth cookie sessions remain supported');
 assert(auth.includes('cookieSession.user.id !== bearerSession.user.id'), 'conflicting bearer and cookie identities are rejected');
 assert(auth.includes('bearer()'), 'Better Auth issues and accepts session bearer tokens for SDK clients');
+assert(auth.includes('socialProviders:'), 'social sign-in providers are configured through Better Auth');
+assert(auth.includes('GOOGLE_CLIENT_ID') && auth.includes('GITHUB_CLIENT_ID'), 'Google and GitHub OAuth credentials are environment-driven');
+assert(authEmail.includes('https://api.postmarkapp.com/email'), 'account email delivery supports Postmark');
+assert(authEmail.includes('https://api.resend.com/emails'), 'account email delivery retains Resend support');
+assert(auth.includes('validateUserInfo') && auth.includes('source.method === "email-password"') && auth.includes('getAuthEmailConfig().configured'), 'email/password account creation fails closed when production mail is unavailable');
+assert(authPanel.includes('Account email delivery is not configured for this Aruk deployment.'), 'recovery is blocked when production mail is unavailable');
 assert(apiBank.includes('async listProviders(userId: string)'), 'provider metadata listing requires a user scope');
 assert(apiBank.includes('where: { id: data.accountId, userId }'), 'usage writes verify account ownership');
 assert(apiBank.includes('async get(id: string, userId: string)'), 'secret retrieval requires a user scope');

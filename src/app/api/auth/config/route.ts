@@ -1,12 +1,18 @@
 import { NextResponse } from "next/server";
+import { getAuthEmailConfig } from "@/lib/auth-email";
 
 export const runtime = "nodejs";
 
 export async function GET() {
-  const emailDelivery = Boolean(process.env.RESEND_API_KEY)
-    && (process.env.NODE_ENV !== "production" || Boolean(process.env.EMAIL_FROM?.trim()));
+  const email = getAuthEmailConfig();
+  const socialProviders = [
+    ...(process.env.GOOGLE_CLIENT_ID?.trim() && process.env.GOOGLE_CLIENT_SECRET?.trim() ? ["google"] : []),
+    ...(process.env.GITHUB_CLIENT_ID?.trim() && process.env.GITHUB_CLIENT_SECRET?.trim() ? ["github"] : []),
+  ];
   return NextResponse.json({
-    emailDelivery,
-    developmentEmailLog: process.env.NODE_ENV !== "production" && !process.env.RESEND_API_KEY,
+    emailDelivery: email.configured,
+    emailProvider: email.provider,
+    developmentEmailLog: email.developmentEmailLog,
+    socialProviders,
   }, { headers: { "Cache-Control": "no-store" } });
 }
