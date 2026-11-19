@@ -193,8 +193,7 @@ export function OverviewTab({ refreshKey }: { refreshKey: number }) {
     <div className="space-y-5">
       <section aria-label="Aruk canonical identity" className="relative isolate min-h-[300px] overflow-hidden rounded-2xl border border-brand/25 bg-gradient-to-br from-[#101512] via-[#111714] to-[#171a17] shadow-xl sm:min-h-[320px]">
         <img src="/identity/aruk-at-gate.jpg" alt="Aruk, the canonical elephant guardian at the gate, shown in full" className="absolute right-0 top-1/2 z-0 h-full w-[58%] -translate-y-1/2 object-contain object-right opacity-70 sm:w-1/2 sm:opacity-80" />
-        <div className="absolute inset-0 z-[1] bg-gradient-to-r from-[#090e0c] via-[#090e0c]/95 via-50% to-[#090e0c]/10" />
-        <div className="absolute inset-0 z-[1] bg-gradient-to-t from-[#090e0c]/55 via-transparent to-[#090e0c]/15" />
+        <div className="pointer-events-none absolute inset-0 z-[1] bg-gradient-to-r from-[#090e0c] via-[#090e0c]/95 via-40% to-transparent to-65%" />
         <div className="relative z-[2] flex min-h-[300px] items-center p-6 sm:min-h-[320px] sm:p-9">
           <div className="max-w-xl">
             <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-amber-200">Arukel · The Keeper at the Gate</p>
