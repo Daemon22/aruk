@@ -1,118 +1,224 @@
-// ============================================================
-// Aruk — Authentication
-// ============================================================
-// Simple, self-hosted auth. Each user is private.
-// Aruk is not a SaaS — he is a personal intermediary.
-// ============================================================
+import { after } from "next/server";
+import { betterAuth } from "better-auth/minimal";
+import { APIError, createAuthMiddleware } from "better-auth/api";
+import { nextCookies } from "better-auth/next-js";
+import { bearer, twoFactor } from "better-auth/plugins";
+import { passkey } from "@better-auth/passkey";
+import { getSessionCookie } from "better-auth/cookies";
+import { prismaAdapter } from "@better-auth/prisma-adapter";
+import { db } from "./db";
+import { resolveOrPersistSecret } from "./secret-bootstrap";
+import { sendAuthEmail } from "./auth-email";
+import { allowAuthAttempt } from "./auth-rate-limit";
 
-import { db } from '@/lib/db';
-import { randomBytes, createHmac, scryptSync, timingSafeEqual } from 'crypto';
-import { cookies } from 'next/headers';
-import { resolveOrPersistSecret } from '@/lib/secret-bootstrap';
+const databaseUrl = process.env.DATABASE_URL || "file:./db/custom.db";
+const databaseProvider = /^postgres(?:ql)?:\/\//i.test(databaseUrl) ? "postgresql" : "sqlite";
+const baseURL = process.env.BETTER_AUTH_URL || process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+const baseOrigin = new URL(baseURL).origin;
+const trustedOrigins = Array.from(new Set([
+  baseOrigin,
+  ...(process.env.BETTER_AUTH_TRUSTED_ORIGINS || process.env.ARUK_TRUSTED_ORIGINS || "")
+    .split(",")
+    .map((value) => value.trim())
+    .filter(Boolean),
+]));
 
-function resolveSessionSecret(): string {
-  const { value, source } = resolveOrPersistSecret('ARUK_SESSION_SECRET', '.aruk-session-secret');
-  if (source === 'generated') {
-    console.warn(
-      '[aruk] ARUK_SESSION_SECRET is not set — generated and persisted a random secret. ' +
-      'For portability (backups, scaling to multiple instances) set ARUK_SESSION_SECRET explicitly.'
-    );
-  }
-  return value;
+const secret = process.env.BETTER_AUTH_SECRET
+  || (process.env.NODE_ENV === "production" && process.env.NEXT_PHASE !== "phase-production-build" ? "" : resolveOrPersistSecret("BETTER_AUTH_SECRET", ".aruk-session-secret").value);
+if (!secret || secret.length < 32) {
+  throw new Error("Set BETTER_AUTH_SECRET to a random value of at least 32 characters.");
 }
 
-const SESSION_SECRET = resolveSessionSecret();
-const SESSION_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
+const googleClientId = process.env.GOOGLE_CLIENT_ID;
+const googleClientSecret = process.env.GOOGLE_CLIENT_SECRET;
+const githubClientId = process.env.GITHUB_CLIENT_ID;
+const githubClientSecret = process.env.GITHUB_CLIENT_SECRET;
 
-// ── Password hashing (scrypt, zero external deps) ────────────
+export const auth = betterAuth({
+  appName: "Aruk",
+  baseURL,
+  secret,
+  database: prismaAdapter(db, { provider: databaseProvider }),
+  trustedOrigins,
+  emailAndPassword: {
+    enabled: true,
+    requireEmailVerification: true,
+    autoSignIn: false,
+    minPasswordLength: 8,
+    maxPasswordLength: 128,
+    revokeSessionsOnPasswordReset: true,
+    sendResetPassword: async ({ user, url }) => {
+      after(() => sendAuthEmail({
+        to: user.email,
+        subject: "Reset your Aruk password",
+        message: "Use this one-time link to choose a new password.",
+        url,
+      }).catch((error: unknown) => console.error("[aruk] auth email failed:", error instanceof Error ? error.message : error)));
+    },
+  },
+  emailVerification: {
+    sendOnSignUp: true,
+    autoSignInAfterVerification: true,
+    expiresIn: 60 * 60,
+    sendVerificationEmail: async ({ user, url }) => {
+      after(() => sendAuthEmail({
+        to: user.email,
+        subject: "Verify your Aruk email",
+        message: "Verify your email address to finish creating your Aruk account.",
+        url,
+      }).catch((error: unknown) => console.error("[aruk] auth email failed:", error instanceof Error ? error.message : error)));
+    },
+  },
+  socialProviders: {
+    ...(googleClientId && googleClientSecret
+      ? { google: { clientId: googleClientId, clientSecret: googleClientSecret, prompt: "select_account", disableImplicitSignUp: true } }
+      : {}),
+    ...(githubClientId && githubClientSecret
+      ? { github: { clientId: githubClientId, clientSecret: githubClientSecret, scope: ["read:user", "user:email"], disableImplicitSignUp: true } }
+      : {}),
+  },
+  user: {
+    additionalFields: {
+      role: { type: "string", required: false, defaultValue: "USER", input: false, returned: true },
+    },
+  },
+  databaseHooks: {
+    user: {
+      create: {
+        before: async (user) => ({
+          data: { ...user, email: user.email.trim().toLowerCase(), role: "USER" },
+        }),
+      },
+    },
+  },
+  hooks: {
+    before: createAuthMiddleware(async (ctx) => {
+      // Email registrations must pass through the transaction that elects the first admin.
+      if (ctx.path === "/sign-up/email") {
+        throw new APIError("FORBIDDEN", { message: "Use Aruk's account registration flow." });
+      }
 
-export function hashPassword(password: string): string {
-  const salt = randomBytes(16).toString('hex');
-  const hash = scryptSync(password, salt, 64).toString('hex');
-  return `${salt}:${hash}`;
+      // OAuth can create later user accounts, but cannot bypass the initial admin setup token.
+      if (ctx.path === "/sign-in/social" && ctx.body?.requestSignUp === true) {
+        const provider = typeof ctx.body.provider === "string" ? ctx.body.provider : "social";
+        if (!ctx.request || !allowAuthAttempt(ctx.request, "register", `oauth:${provider}`)) {
+          throw new APIError("TOO_MANY_REQUESTS", { message: "Too many registration attempts. Try again later." });
+        }
+        if (await db.user.count() === 0) {
+          throw new APIError("FORBIDDEN", { message: "The first account must use email and the admin setup token." });
+        }
+      }
+    }),
+  },
+  account: {
+    encryptOAuthTokens: true,
+    accountLinking: { enabled: true },
+  },
+  plugins: [
+    bearer(),
+    twoFactor({ issuer: "Aruk", allowPasswordless: true }),
+    passkey({
+      rpName: "Aruk",
+      rpID: new URL(baseURL).hostname,
+      origin: trustedOrigins,
+    }),
+    nextCookies(),
+  ],
+  advanced: {
+    backgroundTasks: { handler: (promise) => { after(() => promise); } },
+    useSecureCookies: process.env.NODE_ENV === "production",
+    cookies: {
+      session_token: {
+        attributes: {
+          httpOnly: true,
+          sameSite: "lax",
+          path: "/",
+          secure: process.env.NODE_ENV === "production",
+        },
+      },
+    },
+  },
+});
+
+export type SessionContext = {
+  id: string;
+  email: string;
+  name: string;
+  sessionId: string;
+};
+
+const DEV_USER = { id: "dev", email: "dev@aruk.local", name: "Dev", sessionId: "dev" };
+const BYPASS_AUTH = process.env.ARUK_BYPASS_AUTH === "true";
+if (BYPASS_AUTH && process.env.NODE_ENV === "production") {
+  throw new Error("ARUK_BYPASS_AUTH must not be enabled in production");
 }
 
-export function verifyPassword(password: string, stored: string): boolean {
-  const [salt, hash] = stored.split(':');
-  if (!salt || !hash) return false;
-  const verify = scryptSync(password, salt, 64).toString('hex');
-  if (hash.length !== verify.length) return false;
-  return timingSafeEqual(Buffer.from(hash), Buffer.from(verify));
-}
-
-// ── Session tokens (HMAC-signed, stateless) ──────────────────
-
-export function createSessionToken(userId: string): string {
-  const ts = Date.now().toString(36);
-  const nonce = randomBytes(16).toString('hex');
-  const payload = `${userId}.${ts}.${nonce}`;
-  const sig = createHmac('sha256', SESSION_SECRET).update(payload).digest('hex');
-  return `${payload}.${sig}`;
-}
-
-export function verifySessionToken(token: string): string | null {
-  const parts = token.split('.');
-  if (parts.length !== 4) return null;
-  const [userId, ts, nonce, sig] = parts;
-  const payload = `${userId}.${ts}.${nonce}`;
-  const expected = createHmac('sha256', SESSION_SECRET).update(payload).digest('hex');
-  try {
-    if (!timingSafeEqual(Buffer.from(sig), Buffer.from(expected))) return null;
-  } catch {
-    return null;
-  }
-  // Check expiry
-  const issued = parseInt(ts, 36);
-  if (Date.now() - issued > SESSION_MAX_AGE_MS) return null;
-  return userId;
-}
-
-// ── Session helpers for API routes ───────────────────────────
-
-const DEV_USER = { id: 'dev', email: 'dev@aruk.local', name: 'Dev' };
-// Set ARUK_BYPASS_AUTH=true in .env to skip auth (dev/testing only)
-const BYPASS_AUTH = process.env.ARUK_BYPASS_AUTH === 'true';
-if (BYPASS_AUTH && process.env.NODE_ENV === 'production') {
-  throw new Error('ARUK_BYPASS_AUTH must not be enabled in production');
-}
-
-export async function getSession(req: Request): Promise<{ id: string; email: string; name: string } | null> {
-  // Dev bypass — skip auth entirely when ARUK_BYPASS_AUTH=true
+export async function getSessionContext(req: Request): Promise<SessionContext | null> {
   if (BYPASS_AUTH) {
-    // Ensure the dev user exists in DB (auto-create on first call)
-    try {
-      await db.user.upsert({
-        where: { id: DEV_USER.id },
-        update: {},
-        create: { id: DEV_USER.id, email: DEV_USER.email, name: DEV_USER.name, passwordHash: 'bypass' },
-      });
-    } catch { /* ignore */ }
+    await db.user.upsert({
+      where: { id: DEV_USER.id },
+      update: {},
+      create: { id: DEV_USER.id, email: DEV_USER.email, name: DEV_USER.name },
+    });
     return DEV_USER;
   }
-  const authorization = req.headers.get('authorization') || '';
-  const bearerToken = /^Bearer\s+([^\s]+)$/i.exec(authorization)?.[1];
-  const cookieHeader = req.headers.get('cookie') || '';
-  const cookieToken = /(?:^|;\s*)aruk_session=([^;]+)/.exec(cookieHeader)?.[1];
-  if (bearerToken && cookieToken) {
-    const bearerUserId = verifySessionToken(bearerToken);
-    const cookieUserId = verifySessionToken(cookieToken);
-    if (!bearerUserId || !cookieUserId || bearerUserId !== cookieUserId) return null;
+  const authorization = req.headers.get("authorization");
+  const bearerMatch = authorization?.match(/^Bearer\s+([^\s]+)$/i);
+  if (authorization && !bearerMatch) return null;
+
+  const cookieToken = getSessionCookie(req.headers);
+  let current: Awaited<ReturnType<typeof auth.api.getSession>>;
+  if (bearerMatch) {
+    const bearerSession = await auth.api.getSession({
+      headers: new Headers({ authorization: `Bearer ${bearerMatch[1]}` }),
+    });
+    if (!bearerSession) return null;
+    if (cookieToken) {
+      const cookieSession = await auth.api.getSession({
+        headers: new Headers({ cookie: req.headers.get("cookie") || "" }),
+      });
+      if (!cookieSession || cookieSession.user.id !== bearerSession.user.id) return null;
+    }
+    current = bearerSession;
+  } else {
+    current = await auth.api.getSession({ headers: req.headers });
   }
-  const token = bearerToken || cookieToken;
-  if (!token) return null;
-  const userId = verifySessionToken(token);
-  if (!userId) return null;
-  const user = await db.user.findUnique({
-    where: { id: userId },
-    select: { id: true, email: true, name: true },
-  });
+  if (!current) return null;
+  return {
+    id: current.user.id,
+    email: current.user.email,
+    name: current.user.name || current.user.email.split("@")[0] || "Aruk user",
+    sessionId: current.session.id,
+  };
+}
+
+export async function getSession(req: Request): Promise<Omit<SessionContext, "sessionId"> | null> {
+  const context = await getSessionContext(req);
+  if (!context) return null;
+  const { sessionId: _sessionId, ...user } = context;
   return user;
 }
 
-export function sessionCookie(token: string): string {
-  return `aruk_session=${token}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${SESSION_MAX_AGE_MS / 1000}`;
-}
+/** Allow this request's own origin or explicitly configured browser origins. */
+export function hasTrustedOrigin(req: Request): boolean {
+  const origin = req.headers.get("origin");
+  if (!origin) return true;
+  let originUrl: URL;
+  let requestUrl: URL;
+  try {
+    originUrl = new URL(origin);
+    requestUrl = new URL(req.url);
+  } catch {
+    return false;
+  }
 
-export function clearSessionCookie(): string {
-  return 'aruk_session=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0';
+  if (trustedOrigins.includes(originUrl.origin)) return true;
+  if (originUrl.origin === requestUrl.origin) return true;
+
+  const loopbacks = new Set(["localhost", "127.0.0.1", "::1", "[::1]"]);
+  return process.env.NODE_ENV !== "production"
+    && originUrl.protocol === requestUrl.protocol
+    && originUrl.port === requestUrl.port
+    && loopbacks.has(originUrl.hostname)
+    && loopbacks.has(requestUrl.hostname);
 }

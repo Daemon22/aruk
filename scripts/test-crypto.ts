@@ -1,4 +1,4 @@
-import { encryptJson, decryptJson } from '../src/lib/crypto';
+import { encryptJson, decryptJson, encryptBytes, decryptBytes } from '../src/lib/crypto';
 
 let failures = 0;
 function check(name: string, cond: boolean) {
@@ -13,6 +13,14 @@ check('encrypted value has enc:v1: prefix', enc.startsWith('enc:v1:'));
 check('encrypted value does not contain plaintext secret', !enc.includes('sk-test-1234'));
 const dec = decryptJson<typeof original>(enc);
 check('round-trip preserves value', JSON.stringify(dec) === JSON.stringify(original));
+
+// Binary file payloads use the same authenticated encryption key.
+const originalBytes = Buffer.concat([Buffer.from([0, 1, 2, 255]), Buffer.from('private file contents')]);
+const encryptedBytes = encryptBytes(originalBytes);
+check('binary ciphertext has encbin:v1: prefix', encryptedBytes.startsWith('encbin:v1:'));
+check('binary ciphertext does not include its plaintext', !encryptedBytes.includes('private file contents'));
+check('binary round-trip preserves every byte', Buffer.compare(decryptBytes(encryptedBytes), originalBytes) === 0);
+check('tampered binary ciphertext fails authentication', (() => { try { decryptBytes(encryptedBytes.slice(0, -2) + 'AA'); return false; } catch { return true; } })());
 
 // 2. Legacy plaintext row (pre-encryption data) still reads correctly
 const legacyRow = JSON.stringify({ apiKey: 'legacy-key', old: true });

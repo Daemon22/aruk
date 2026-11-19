@@ -12,6 +12,7 @@ const nextConfig: NextConfig = {
           { key: "Vary", value: "Origin" },
           { key: "Access-Control-Allow-Methods", value: "GET,POST,PUT,DELETE,OPTIONS" },
           { key: "Access-Control-Allow-Headers", value: "Content-Type, Authorization, X-Agent-Id, X-Aruk-Pass, X-Aruk-Actor, X-Aruk-Role" },
+          { key: "Access-Control-Expose-Headers", value: "set-auth-token" },
           { key: "X-Powered-By", value: "Aruk" },
         ],
       },

@@ -11,7 +11,7 @@ See [ARUK_PRODUCTION_READINESS_AUDIT.md](ARUK_PRODUCTION_READINESS_AUDIT.md) for
 
 ## Privacy and credential boundary
 
-Aruk is a private, self-hosted Keeper. API keys, OAuth tokens, passwords,
+Aruk is a private Keeper that can hold independent personal accounts. API keys, OAuth tokens, passwords,
 service-account material, certificates, SSH keys, and cloud-provider
 credentials are encrypted at rest with AES-256-GCM using `ARUK_ENCRYPTION_KEY`.
 Plaintext credentials are released only through an authenticated, policy-gated
@@ -25,12 +25,17 @@ privacy by omitting a user identifier or guessing another user's record ID.
 Conflicting cookie and bearer identities are rejected. Provider reference data
 may be shared, but provider account metadata remains private to its owner.
 
-Set both `ARUK_SESSION_SECRET` and `ARUK_ENCRYPTION_KEY` explicitly before
-production deployment. Automatic bootstrap is intended for single-machine
-local use; losing the encryption key makes stored credentials unrecoverable,
-and different keys across instances invalidate sessions or prevent decryption.
-Use TLS and a private network or reverse proxy/WAF for network deployments,
+Set `BETTER_AUTH_SECRET` and `ARUK_ENCRYPTION_KEY` explicitly before production
+deployment. Losing the encryption key makes stored credentials and encrypted files
+unrecoverable; use the same keys on every app instance and keep protected backups.
+Use TLS and a trusted reverse proxy with persistent rate limiting for network deployments,
 and never put credentials in URLs, source control, exports, or client logs.
+
+Aruk uses Better Auth for verified email/password accounts, password recovery, optional
+Google/GitHub sign-in, TOTP multi-factor authentication, and passkeys. Hosted deployments
+use Neon Postgres; local development can use SQLite. See [Neon setup](docs/NEON_SETUP.md)
+and [Customer privacy boundary](docs/CUSTOMER_PRIVACY_BOUNDARY.md) for configuration and
+deployment requirements.
 
 ---
 
@@ -100,7 +105,7 @@ cp .env.example .env
 # Push the database schema
 npx prisma db push
 
-# Seed with sample data
+# Seed the shared provider catalog only (no user or vault demo data)
 npx prisma db seed
 
 # Start dev server
@@ -108,6 +113,10 @@ bun dev    # or: npm run dev
 ```
 
 Visit `http://localhost:3000`.
+
+For a production Neon database, set the pooled `DATABASE_URL` and direct `DIRECT_URL`, then
+apply checked-in PostgreSQL migrations with `npm run db:postgres:migrate:deploy` before
+starting the new application version. Do not use `db:push` against customer data.
 
 ### Web (Docker)
 
@@ -189,6 +198,24 @@ curl -X POST http://localhost:3000/api/agent \
 | `get_secret` | Retrieve vault credentials by purpose |
 | `list_secrets` | List all vault secrets |
 | `add_secret` | Add a new secret to the vault |
+
+### Private files
+
+Aruk's Vault stores files in the configured database, encrypts file contents by default, and can optionally compress them. Downloads are account-scoped and integrity-checked. See [docs/VAULT-FILES.md](docs/VAULT-FILES.md) for key management, backups, the 8 MiB file limit, and deployment steps.
+
+Cloud destinations store encrypted credentials and metadata; they are not provider-verified. Passage records transfer metadata and does not move bytes. The Vault is the feature for storing files directly inside Aruk.
+
+### Accounts and sign-in
+
+The `/api/auth/*` endpoints are handled by Better Auth. Email/password registration requires
+email verification; account recovery uses a one-time email link. Google and GitHub appear when
+their OAuth credentials are configured. Account settings support TOTP authenticator MFA,
+recovery codes, passkeys, linked sign-in methods, and account deletion. Email delivery and OAuth
+provider setup are described in [Neon setup](docs/NEON_SETUP.md).
+
+Browser requests use the Better Auth HttpOnly session cookie. SDK clients can authenticate with
+a session bearer token returned in the `set-auth-token` response header after successful sign-in;
+store that token in protected credential storage and send it only as `Authorization: Bearer ...`.
 
 ---
 

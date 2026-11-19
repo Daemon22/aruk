@@ -11,6 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Skeleton } from "@/components/ui/skeleton";
 import { Ticket, Plus, Ban, Clock, Copy, CheckCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { requestArray, requestJson } from "@/lib/client-api";
 
 interface Pass {
   id: string; token: string; daemonName: string | null;
@@ -37,10 +38,11 @@ export function PassesTab({ refreshKey }: { refreshKey: number }) {
 
   useEffect(() => {
     let cancelled = false;
-    fetch('/api/passes')
-      .then(r => r.json())
-      .then(data => { if (!cancelled) { setPasses(data); setLoading(false); } })
-      .catch(() => { if (!cancelled) setLoading(false); });
+    setLoading(true);
+    requestArray<Pass>('/api/passes')
+      .then(data => { if (!cancelled) setPasses(data); })
+      .catch(error => { if (!cancelled) toast({ title: "Failed to load passes", description: error instanceof Error ? error.message : String(error), variant: "destructive" }); })
+      .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
   }, [refreshKey]);
 
@@ -48,7 +50,7 @@ export function PassesTab({ refreshKey }: { refreshKey: number }) {
     e.preventDefault();
     const fd = new FormData(e.currentTarget);
     try {
-      await fetch('/api/passes', {
+      await requestJson('/api/passes', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           requesterName: fd.get('requesterName'),
@@ -61,19 +63,19 @@ export function PassesTab({ refreshKey }: { refreshKey: number }) {
         }),
       });
       setOpen(false);
-      const data = await fetch('/api/passes').then(r => r.json());
+      const data = await requestArray<Pass>('/api/passes');
       setPasses(data);
     } catch (err) {
-      toast({ title: 'Failed to issue pass', description: String(err), variant: 'destructive' });
+      toast({ title: 'Failed to issue pass', description: err instanceof Error ? err.message : String(err), variant: 'destructive' });
     }
   };
 
   const revokePass = async (id: string) => {
     try {
-      await fetch(`/api/passes?id=${id}`, { method: 'DELETE' });
+      await requestJson(`/api/passes?id=${encodeURIComponent(id)}`, { method: 'DELETE' });
       setPasses(passes.map(p => p.id === id ? { ...p, status: 'revoked' as const } : p));
     } catch (err) {
-      toast({ title: 'Failed to revoke pass', description: String(err), variant: 'destructive' });
+      toast({ title: 'Failed to revoke pass', description: err instanceof Error ? err.message : String(err), variant: 'destructive' });
     }
   };
 

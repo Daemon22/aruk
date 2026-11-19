@@ -41,6 +41,7 @@
     "web",
     "src-tauri/server",
     "examples",
-    "mini-services"
+    "mini-services",
+    "aruk"
   ]
 }

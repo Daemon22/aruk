@@ -1,21 +1,27 @@
 import { db } from '@/lib/db';
 import { NextResponse } from 'next/server';
 
-// ── GET /api/health ───────────────────────────────────────────
-// Lightweight heartbeat for agents and monitoring
+// The health endpoint checks persistent storage as well as the web process.
 export async function GET() {
   try {
     await db.$queryRaw`SELECT 1`;
     return NextResponse.json({
       status: 'healthy',
-      database: 'ready',
-      service: 'aruk',
+      database: 'connected',
       uptime: process.uptime(),
+       service: 'aruk',
     }, {
       status: 200,
       headers: { 'Cache-Control': 'no-store' },
     });
   } catch {
-    return NextResponse.json({ status: 'unhealthy', database: 'unavailable' }, { status: 503 });
+    return NextResponse.json({
+      status: 'unhealthy',
+      database: 'unavailable',
+      service: 'aruk',
+    }, {
+      status: 503,
+      headers: { 'Cache-Control': 'no-store' },
+    });
   }
 }

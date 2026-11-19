@@ -1,0 +1,40 @@
+{
+  "schemaVersion": 1,
+  "project": "Daemon22/aruk",
+  "identityPolicy": {
+    "arukMark": "immutable",
+    "arukPortrait": "immutable",
+    "lineage": "pending Hawk update"
+  },
+  "assets": [
+    {
+      "id": "aruk-mark",
+      "role": "permanent-project-mark",
+      "path": "public/identity/aruk-mark.jpg",
+      "mediaType": "image/jpeg",
+      "source": "The_Complete_Codex_of_HAEL_CORRECTED.pdf",
+      "sourcePage": 29,
+      "sourceEmbeddedName": "FormXob.55237ce1addb18d357413bdc468ee0e6.jpg",
+      "sha256": "4ef0368611df0007a188c88fdc2c1f30ef303b2fcd0f221a959ab39dd091f392"
+    },
+    {
+      "id": "aruk-at-gate",
+      "role": "permanent-aruk-portrait",
+      "path": "public/identity/aruk-at-gate.jpg",
+      "mediaType": "image/jpeg",
+      "source": "The_Complete_Codex_of_HAEL_CORRECTED.pdf",
+      "sourcePage": 30,
+      "sourceEmbeddedName": "FormXob.eaaf4a4b315c97cbc6fc07869507d763.jpg",
+      "sha256": "6e47bdd557f3ca50f3829ff827c5003f7133efa7af3628aa7202aa20c9bb4828"
+    },
+    {
+      "id": "craft-engine-crest",
+      "role": "craft-engine-archive-seal-emblem",
+      "path": "public/identity/craft-engine-crest.png",
+      "mediaType": "image/png",
+      "source": "Daemon22/craft-engine public/craft-engine-crest.png",
+      "sha256": "33f06c7ea87d338bc3b1a0b4e70c60703ce8077f9dd5378f6726c7cbc8e556c",
+      "usage": "visual design reference; not a live archive result"
+    }
+  ]
+}

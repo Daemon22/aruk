@@ -11,6 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Skeleton } from "@/components/ui/skeleton";
 import { Cloud, Plus, Unplug } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { requestJson } from "@/lib/client-api";
 
 interface CloudAccount {
   id: string;
@@ -72,9 +73,8 @@ export function CloudsTab({ refreshKey }: { refreshKey: number }) {
   const fetchAccounts = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch('/api/cloud-accounts');
-      const json = await res.json();
-      setAccounts(json.data || []);
+      const json = await requestJson<{ data?: unknown }>('/api/cloud-accounts');
+      setAccounts(Array.isArray(json.data) ? json.data as CloudAccount[] : []);
     } catch {
       toast({ title: "Failed to load cloud accounts", variant: "destructive" });
     } finally {
@@ -101,7 +101,7 @@ export function CloudsTab({ refreshKey }: { refreshKey: number }) {
     const masked = creds.client_email || creds.accessKeyId || creds.accountName || null;
 
     try {
-      await fetch('/api/cloud-accounts', {
+      await requestJson('/api/cloud-accounts', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -126,7 +126,7 @@ export function CloudsTab({ refreshKey }: { refreshKey: number }) {
 
   const handleDisconnect = async (id: string) => {
     try {
-      await fetch(`/api/cloud-accounts?id=${id}`, { method: 'DELETE' });
+      await requestJson(`/api/cloud-accounts?id=${encodeURIComponent(id)}`, { method: 'DELETE' });
       setAccounts(accounts.map(a => a.id === id ? { ...a, status: 'revoked' } : a));
     } catch {
       toast({ title: "Failed to disconnect cloud account", variant: "destructive" });
@@ -145,15 +145,15 @@ export function CloudsTab({ refreshKey }: { refreshKey: number }) {
             <Cloud className="h-4 w-4 text-brand" /> Cloud Accounts
           </h2>
           <p className="text-xs text-muted-foreground mt-1">
-            Connect your cloud storage backends. Agents offload data here when local storage is constrained.
+            Store provider credentials and destination details here. Aruk encrypts credentials at rest; this screen does not test credentials or transfer files.
           </p>
         </div>
         <Dialog open={open} onOpenChange={setOpen}>
           <DialogTrigger asChild>
-            <Button size="sm" className="gap-1.5 text-xs rounded-lg bg-brand hover:bg-brand/90 text-brand-foreground"><Plus className="h-3 w-3" /> Connect Cloud</Button>
+            <Button size="sm" className="gap-1.5 text-xs rounded-lg bg-brand hover:bg-brand/90 text-brand-foreground"><Plus className="h-3 w-3" /> Add destination</Button>
           </DialogTrigger>
           <DialogContent className="max-w-md">
-            <DialogHeader><DialogTitle>Connect Cloud Storage</DialogTitle></DialogHeader>
+            <DialogHeader><DialogTitle>Add Cloud Destination</DialogTitle></DialogHeader>
             <form onSubmit={handleConnect} className="space-y-3">
               <div>
                 <Label className="text-xs">Account Name</Label>
@@ -203,7 +203,7 @@ export function CloudsTab({ refreshKey }: { refreshKey: number }) {
                 <Label className="text-xs">Notes</Label>
                 <Input name="notes" placeholder="Optional notes..." className="mt-1" />
               </div>
-              <Button type="submit" className="w-full rounded-lg bg-brand hover:bg-brand/90 text-brand-foreground">Connect</Button>
+              <Button type="submit" className="w-full rounded-lg bg-brand hover:bg-brand/90 text-brand-foreground">Save destination</Button>
             </form>
           </DialogContent>
         </Dialog>
@@ -213,9 +213,9 @@ export function CloudsTab({ refreshKey }: { refreshKey: number }) {
         <Card className="rounded-xl border-dashed border-border/60">
           <CardContent className="py-16 text-center">
             <Cloud className="h-8 w-8 text-muted-foreground/40 mx-auto mb-3" />
-            <p className="text-sm text-muted-foreground">No cloud accounts connected.</p>
+            <p className="text-sm text-muted-foreground">No cloud destinations saved.</p>
             <p className="text-xs text-muted-foreground/60 mt-1">
-              Connect a Google Cloud, AWS, Azure, or Dropbox account to let agents offload data.
+              Save destination details here. Use Passage to record transfer events; that screen does not move file contents.
             </p>
           </CardContent>
         </Card>
@@ -233,12 +233,12 @@ export function CloudsTab({ refreshKey }: { refreshKey: number }) {
                         <div className="font-medium text-sm flex items-center gap-2">
                           {a.name}
                           <Badge variant="outline" className={`text-[9px] border ${PROVIDER_COLORS[a.provider] || ''}`}>{a.provider.replace('_', ' ')}</Badge>
-                          <Badge variant="outline" className={`text-[10px] border ${STATUS_STYLE[a.status] || ''}`}>{a.status}</Badge>
+                          <Badge variant="outline" className={`text-[10px] border ${STATUS_STYLE[a.status] || ''}`}>{a.status === 'active' ? 'Credentials stored' : a.status}</Badge>
                         </div>
                         <div className="text-[11px] text-muted-foreground mt-0.5">
                           {a.bucketName}{a.region ? ` / ${a.region}` : ''}
                           {a.projectId ? ` / ${a.projectId}` : ''}
-                          <span className="ml-2">Connected {timeAgo(a.connectedAt)}</span>
+                          <span className="ml-2">Added {timeAgo(a.connectedAt)}</span>
                         </div>
                       </div>
                     </div>

@@ -36,7 +36,19 @@ function dataDir(): string {
 
 export function resolveOrPersistSecret(envVarName: string, fileName: string): { value: string; source: 'env' | 'generated' } {
   const fromEnv = process.env[envVarName];
-  if (fromEnv) return { value: fromEnv, source: 'env' };
+  if (fromEnv) {
+    if (process.env.NODE_ENV === 'production' && fromEnv.length < 32) {
+      throw new Error(`${envVarName} must be at least 32 characters in production`);
+    }
+    return { value: fromEnv, source: 'env' };
+  }
+
+  // Production builds compile server modules without deployment secrets.
+  // Enforce secrets when the production server actually starts, while keeping
+  // the build artifact portable across environments.
+  if (process.env.NODE_ENV === 'production' && process.env.NEXT_PHASE !== 'phase-production-build') {
+    throw new Error(`${envVarName} must be set explicitly in production`);
+  }
 
   const dir = dataDir();
   const filePath = resolve(dir, fileName);

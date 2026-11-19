@@ -8,6 +8,9 @@ export async function GET() {
     version: "1.0.0",
     description: "Centralized API key management with intelligent routing",
     endpoints: {
+      auth: "POST /api/auth/sign-up/email, /sign-in/email, /sign-out, /get-session — Account access (Better Auth)",
+      recovery: "POST /api/auth/request-password-reset and /reset-password — Email-based account recovery",
+      oauth: "GET /api/auth/sign-in/social — Google/GitHub when configured",
       health: "GET  /api/health                          — Heartbeat check",
       agent: "GET  /api/agent?strategy=best&provider=...  — One-shot key retrieval",
       agent_post: "POST /api/agent                        — Structured actions (get_key, status, list, add_key, add_keys, report_usage, failover)",

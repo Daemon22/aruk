@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Skeleton } from "@/components/ui/skeleton";
 import { ScrollText, ShieldAlert, CheckCircle, XCircle, Activity, Clock } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { requestJson } from "@/lib/client-api";
 
 interface AuditEntry {
   id: string; actorName: string; actorRole: string | null;
@@ -46,12 +47,13 @@ export function AuditTab({ refreshKey }: { refreshKey: number }) {
   const load = async () => {
     try {
       const [statsData, eventsData] = await Promise.all([
-        fetch('/api/audit?stats=true').then(r => r.json()),
-        fetch(`/api/audit?page=${page}&perPage=30${filterOutcome ? `&outcome=${filterOutcome}` : ''}`).then(r => r.json()),
+        requestJson<any>('/api/audit?stats=true'),
+        requestJson<any>(`/api/audit?page=${page}&perPage=30${filterOutcome ? `&outcome=${filterOutcome}` : ''}`),
       ]);
-      setStats(statsData);
-      setEvents(eventsData.events);
-      setTotal(eventsData.total);
+      if (!Array.isArray(eventsData.events)) throw new Error("Aruk returned an invalid audit event list.");
+      setStats(statsData as AuditStats);
+      setEvents(eventsData.events as AuditEntry[]);
+      setTotal(Number(eventsData.total) || 0);
     } catch {
       toast({ title: "Failed to load audit events", variant: "destructive" });
     } finally {

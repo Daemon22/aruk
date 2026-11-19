@@ -42,6 +42,8 @@ import {
   Check,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { requestArray, requestJson } from "@/lib/client-api";
+import { VaultFilesPanel } from "@/components/api-bank/vault-files-panel";
 
 // ─── Types ──────────────────────────────────────────────────
 
@@ -252,7 +254,7 @@ function AddSecretDialog({ onAdded }: { onAdded: () => void }) {
       if (credKey2.trim() && credVal2.trim()) credentials[credKey2.trim()] = credVal2.trim();
       if (credKey3.trim() && credVal3.trim()) credentials[credKey3.trim()] = credVal3.trim();
 
-      await fetch('/api/secrets', {
+      await requestJson('/api/secrets', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -266,8 +268,8 @@ function AddSecretDialog({ onAdded }: { onAdded: () => void }) {
       setName(''); setType(''); setProvider(''); setPurpose('');
       setCredKey1(''); setCredVal1(''); setCredKey2(''); setCredVal2(''); setCredKey3(''); setCredVal3('');
       setNotes(''); setOpen(false); onAdded();
-    } catch {
-      toast({ title: 'Failed to add secret', variant: 'destructive' });
+    } catch (error) {
+      toast({ title: 'Failed to add secret', description: error instanceof Error ? error.message : String(error), variant: 'destructive' });
     } finally { setAdding(false); }
   };
 
@@ -380,10 +382,11 @@ export function VaultTab({ refreshKey, onRefresh }: { refreshKey: number; onRefr
     const params = new URLSearchParams();
     if (filterType !== 'all') params.set('type', filterType);
     if (filterPurpose !== 'all') params.set('purpose', filterPurpose);
-    fetch(`/api/secrets?${params}`)
-      .then(r => r.json())
-      .then(data => { if (!cancelled) { setSecrets(data); setLoading(false); } })
-      .catch(() => { if (!cancelled) setLoading(false); });
+    setLoading(true);
+    requestArray<Secret>(`/api/secrets?${params}`)
+      .then(data => { if (!cancelled) setSecrets(data); })
+      .catch(error => { if (!cancelled) toast({ title: 'Failed to load secrets', description: error instanceof Error ? error.message : String(error), variant: 'destructive' }); })
+      .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
   }, [filterType, filterPurpose]);
 
@@ -396,8 +399,8 @@ export function VaultTab({ refreshKey, onRefresh }: { refreshKey: number; onRefr
       const params = new URLSearchParams();
       if (filterType !== 'all') params.set('type', filterType);
       if (filterPurpose !== 'all') params.set('purpose', filterPurpose);
-      const res = await fetch(`/api/secrets?${params}`);
-      if (res.ok) setSecrets(await res.json());
+      const safe = await requestArray<Secret>(`/api/secrets?${params}`);
+      setSecrets(safe);
       return;
     }
 
@@ -417,9 +420,13 @@ export function VaultTab({ refreshKey, onRefresh }: { refreshKey: number; onRefr
 
   const deleteSecret = async (id: string) => {
     if (!confirm('Delete this secret? This cannot be undone.')) return;
-    await fetch(`/api/secrets?id=${id}`, { method: 'DELETE' });
-    toast({ title: 'Secret deleted' });
-    onRefresh();
+    try {
+      await requestJson(`/api/secrets?id=${encodeURIComponent(id)}`, { method: 'DELETE' });
+      toast({ title: 'Secret deleted' });
+      onRefresh();
+    } catch (error) {
+      toast({ title: 'Failed to delete secret', description: error instanceof Error ? error.message : String(error), variant: 'destructive' });
+    }
   };
 
   const filtered = useMemo(() => {
@@ -442,6 +449,7 @@ export function VaultTab({ refreshKey, onRefresh }: { refreshKey: number; onRefr
 
   return (
     <div className="space-y-4">
+      <VaultFilesPanel refreshKey={refreshKey} />
       {/* Header */}
       <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between">
         <div className="flex gap-2 items-center w-full sm:w-auto flex-wrap">

@@ -46,6 +46,7 @@ interface AuditEntry {
 
 export function OverviewTab({ refreshKey }: { refreshKey: number }) {
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [daemonCount, setDaemonCount] = useState(0);
   const [activePasses, setActivePasses] = useState(0);
   const [policyCount, setPolicyCount] = useState(0);
@@ -54,49 +55,95 @@ export function OverviewTab({ refreshKey }: { refreshKey: number }) {
   const [recentEvents, setRecentEvents] = useState<AuditEntry[]>([]);
   const [cloudAccountCount, setCloudAccountCount] = useState(0);
   const [passageStats, setPassageStats] = useState<PassageStats | null>(null);
-  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
-    setError(null);
-    const readJson = async <T,>(path: string): Promise<T> => {
-      const response = await fetch(path, { cache: "no-store" });
-      const payload = await response.json().catch(() => null);
+    setLoadError(null);
+
+    const readJson = async (url: string): Promise<unknown> => {
+      const response = await fetch(url, { cache: 'no-store' });
+      const payload: unknown = await response.json().catch(() => null);
       if (!response.ok) {
-        throw new Error(typeof payload?.error === "string" ? payload.error : `Request failed (${response.status})`);
+        if (response.status === 401) {
+          throw new Error("Sign in to Aruk to view overview data.");
+        }
+        const apiError =
+          payload && typeof payload === "object" && "error" in payload && typeof payload.error === "string"
+            ? payload.error
+            : "Aruk request failed (" + response.status + ").";
+        throw new Error(apiError);
       }
-      return payload as T;
+      return payload;
     };
+
+    const readArray = async (url: string): Promise<any[]> => {
+      const payload = await readJson(url);
+      if (!Array.isArray(payload)) {
+        throw new Error("Aruk returned an invalid list response.");
+      }
+      return payload;
+    };
+
+    const readObject = async (url: string): Promise<Record<string, any>> => {
+      const payload = await readJson(url);
+      if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
+        throw new Error("Aruk returned an invalid response.");
+      }
+      return payload as Record<string, any>;
+    };
+
     Promise.all([
-      readJson<any[]>('/api/daemons'),
-      readJson<any[]>('/api/passes?status=active'),
-      readJson<any[]>('/api/policies'),
-      readJson<any[]>('/api/perimeter'),
-      readJson<AuditStats>('/api/audit?stats=true'),
-      readJson<{ events: AuditEntry[] }>('/api/audit?perPage=8'),
-      readJson<{ data: any[] }>('/api/cloud-accounts'),
-      readJson<{ data: PassageStats }>('/api/offload?stats=true'),
+      readArray('/api/daemons'),
+      readArray('/api/passes?status=active'),
+      readArray('/api/policies'),
+      readArray('/api/perimeter'),
+      readObject('/api/audit?stats=true'),
+      readObject('/api/audit?perPage=8'),
+      readObject('/api/cloud-accounts'),
+      readObject('/api/offload?stats=true'),
     ]).then(([daemons, passes, policies, rules, audit, events, clouds, passage]) => {
-      if (!cancelled) {
-        setDaemonCount(daemons.filter((d: any) => d.status === 'active').length);
-        setActivePasses(passes.length);
-        setPolicyCount(policies.length);
-        setPerimeterRules(rules.filter((r: any) => r.status === 'active').length);
-        setAuditStats(audit);
-        setRecentEvents(events.events);
-        setCloudAccountCount(clouds.data.filter((c: any) => c.status === 'active').length);
-        setPassageStats(passage.data);
-        setLoading(false);
-      }
-    }).catch((loadError: unknown) => {
-      if (!cancelled) {
-        setError(loadError instanceof Error ? loadError.message : "Unable to read Aruk state");
-        setLoading(false);
-      }
+      if (cancelled) return;
+      setDaemonCount(daemons.filter((d: any) => d?.status === 'active').length);
+      setActivePasses(passes.length);
+      setPolicyCount(policies.length);
+      setPerimeterRules(rules.filter((r: any) => r?.status === 'active').length);
+      setAuditStats(audit as unknown as AuditStats);
+      setRecentEvents(Array.isArray(events.events) ? events.events : []);
+      setCloudAccountCount(
+        Array.isArray(clouds.data)
+          ? clouds.data.filter((c: any) => c?.status === 'active').length
+          : 0,
+      );
+      const passageData = passage.data;
+      setPassageStats(
+        passageData && typeof passageData === "object" && !Array.isArray(passageData)
+          ? passageData as PassageStats
+          : null,
+      );
+    }).catch((error: unknown) => {
+      if (cancelled) return;
+      setLoadError(error instanceof Error ? error.message : "Unable to load overview data.");
+    }).finally(() => {
+      if (!cancelled) setLoading(false);
     });
+
     return () => { cancelled = true; };
   }, [refreshKey]);
+
+  if (loadError) {
+    return (
+      <Card className="rounded-xl border-amber-400/20 bg-[#101512]/75 backdrop-blur-sm">
+        <CardContent className="flex items-start gap-3 p-5">
+          <ShieldAlert className="mt-0.5 h-4 w-4 shrink-0 text-amber-300" />
+          <div>
+            <p className="text-sm font-medium text-foreground">Overview unavailable</p>
+            <p className="mt-1 text-xs text-muted-foreground">{loadError} After access is restored, use Refresh to try again.</p>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
 
   if (loading) {
     return (
@@ -108,20 +155,6 @@ export function OverviewTab({ refreshKey }: { refreshKey: number }) {
         </div>
         <Skeleton className="h-[200px] rounded-xl" />
       </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <Card className="rounded-xl border-red-500/30 bg-red-500/5">
-        <CardContent className="flex items-center gap-3 p-5">
-          <ShieldAlert className="h-5 w-5 shrink-0 text-red-400" />
-          <div>
-            <p className="text-sm font-medium">Overview unavailable</p>
-            <p className="mt-1 text-xs text-muted-foreground">{error}. No substitute state is being shown.</p>
-          </div>
-        </CardContent>
-      </Card>
     );
   }
 
@@ -158,6 +191,22 @@ export function OverviewTab({ refreshKey }: { refreshKey: number }) {
 
   return (
     <div className="space-y-5">
+      <section aria-label="Aruk canonical identity" className="relative isolate min-h-[300px] overflow-hidden rounded-2xl border border-brand/25 bg-gradient-to-br from-[#101512] via-[#111714] to-[#171a17] shadow-xl sm:min-h-[320px]">
+        <img src="/identity/aruk-at-gate.jpg" alt="Aruk, the canonical elephant guardian at the gate, shown in full" className="absolute right-0 top-1/2 z-0 h-full w-[58%] -translate-y-1/2 object-contain object-right opacity-70 sm:w-1/2 sm:opacity-80" />
+        <div className="absolute inset-0 z-[1] bg-gradient-to-r from-[#090e0c] via-[#090e0c]/95 via-50% to-[#090e0c]/10" />
+        <div className="absolute inset-0 z-[1] bg-gradient-to-t from-[#090e0c]/55 via-transparent to-[#090e0c]/15" />
+        <div className="relative z-[2] flex min-h-[300px] items-center p-6 sm:min-h-[320px] sm:p-9">
+          <div className="max-w-xl">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-amber-200">Arukel · The Keeper at the Gate</p>
+            <h2 className="mt-3 font-serif text-4xl tracking-tight text-stone-50 sm:text-5xl">The gate <span className="text-amber-200">holds.</span></h2>
+            <p className="mt-3 max-w-lg text-sm leading-6 text-stone-200/85">Custody in both directions. Every key, passage, and process stays scoped, checked, and recorded. Aruk holds the house’s keys; each intelligence receives only the authority it has been granted.</p>
+            <div className="mt-5 flex flex-wrap gap-2 text-[9px] font-medium uppercase tracking-[0.16em] text-amber-100">
+              <span className="rounded-full border border-amber-200/25 bg-black/25 px-3 py-1.5">Preserver</span><span className="rounded-full border border-amber-200/25 bg-black/25 px-3 py-1.5">Guardian</span><span className="rounded-full border border-amber-200/25 bg-black/25 px-3 py-1.5">Continuity</span><span className="rounded-full border border-emerald-200/25 bg-black/25 px-3 py-1.5 text-emerald-100">Default-deny</span>
+            </div>
+          </div>
+        </div>
+        <span className="absolute bottom-4 right-5 z-[2] font-serif text-xs italic text-amber-100/90 drop-shadow">The Keeper · the gate holds</span>
+      </section>
       {/* Gate Status Grid */}
       <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3">
         {statCards.map(({ label, value, icon: Icon, accent, bg, border }, i) => (
@@ -177,6 +226,34 @@ export function OverviewTab({ refreshKey }: { refreshKey: number }) {
           </Card>
         ))}
       </div>
+
+      <Card className="rounded-xl border-border/50 overflow-hidden">
+        <CardHeader className="pb-3 px-5 pt-4">
+          <CardTitle className="text-sm font-semibold flex items-center gap-2">
+            <Shield className="h-4 w-4 text-brand" />
+            Keeper cycle
+            <span className="ml-auto text-[10px] font-normal text-muted-foreground">Current Aruk signals</span>
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="px-5 pb-5">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-2">
+            {[
+              { step: "01", title: "Determine", value: daemonCount, detail: "trusted daemons", color: "text-violet-400", border: "border-violet-500/20", bg: "bg-violet-500/5" },
+              { step: "02", title: "Verify", value: policyCount, detail: "access policies", color: "text-blue-400", border: "border-blue-500/20", bg: "bg-blue-500/5" },
+              { step: "03", title: "Insure", value: perimeterRules, detail: "active perimeter rules", color: "text-amber-400", border: "border-amber-500/20", bg: "bg-amber-500/5" },
+              { step: "04", title: "Orchestrate", value: activePasses, detail: "active scoped passes", color: "text-emerald-400", border: "border-emerald-500/20", bg: "bg-emerald-500/5" },
+            ].map((item) => (
+              <div key={item.step} className={`rounded-lg border p-3 ${item.border} ${item.bg}`}>
+                <div className="flex items-center justify-between">
+                  <span className={`text-[10px] font-semibold tracking-widest ${item.color}`}>{item.step} / {item.title}</span>
+                  <span className="text-lg font-bold tabular-nums">{item.value}</span>
+                </div>
+                <p className="text-[11px] text-muted-foreground mt-1">{item.detail}</p>
+              </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
 
       <div className="grid md:grid-cols-2 gap-4">
         {/* Gate Integrity */}
