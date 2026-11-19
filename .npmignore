@@ -1,0 +1,27 @@
+# Aruk is an application release, not an npm library.
+# Keep accidental archives free of local state, generated output, and legacy copies.
+.git/
+.github/
+.zscripts/
+.next/
+out/
+build/
+dist/
+coverage/
+data/
+db/
+node_modules/
+**/.gradle/
+**/build/
+**/target/
+**/.next/
+**/node_modules/
+*.db
+*.sqlite
+*.sqlite3
+*.db-journal
+*.pem
+.env
+.env.*
+!.env.example
+web/

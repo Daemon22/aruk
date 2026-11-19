@@ -187,7 +187,7 @@ export function OverviewTab({ refreshKey }: { refreshKey: number }) {
 
   const allowedPct = auditStats && auditStats.total > 0
     ? Math.round((auditStats.allowed / auditStats.total) * 100)
-    : 100;
+    : null;
 
   return (
     <div className="space-y-5">
@@ -269,18 +269,18 @@ export function OverviewTab({ refreshKey }: { refreshKey: number }) {
             <div>
               <div className="flex items-center justify-between text-xs mb-1.5">
                 <span className="text-muted-foreground">Access decisions</span>
-                <span className={`font-semibold ${allowedPct >= 90 ? 'text-emerald-400' : allowedPct >= 70 ? 'text-amber-400' : 'text-red-400'}`}>
-                  {allowedPct}% allowed
+                <span className={`font-semibold ${allowedPct === null ? 'text-muted-foreground' : allowedPct >= 90 ? 'text-emerald-400' : allowedPct >= 70 ? 'text-amber-400' : 'text-red-400'}`}>
+                  {allowedPct === null ? "No decisions recorded" : `${allowedPct}% allowed`}
                 </span>
               </div>
               <div className="h-2 rounded-full bg-muted/50 overflow-hidden flex">
                 <div
                   className="bg-emerald-500/70 rounded-l-full transition-all duration-700"
-                  style={{ width: `${allowedPct}%` }}
+                  style={{ width: `${allowedPct ?? 0}%` }}
                 />
                 <div
                   className="bg-red-500/70 rounded-r-full transition-all duration-700"
-                  style={{ width: `${100 - allowedPct}%` }}
+                  style={{ width: `${allowedPct === null ? 0 : 100 - allowedPct}%` }}
                 />
               </div>
             </div>

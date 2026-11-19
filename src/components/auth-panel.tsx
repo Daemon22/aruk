@@ -14,6 +14,7 @@ type Mode = "login" | "register" | "recovery" | "mfa";
 type AuthConfig = {
   emailDelivery: boolean;
   developmentEmailLog: boolean;
+  adminSetupRequired: boolean;
   google: boolean;
   github: boolean;
 };
@@ -21,6 +22,7 @@ type AuthConfig = {
 const defaultAuthConfig: AuthConfig = {
   emailDelivery: false,
   developmentEmailLog: false,
+  adminSetupRequired: false,
   google: false,
   github: false,
 };
@@ -43,6 +45,7 @@ export function AuthPanel({ onAuthenticated }: { onAuthenticated: (user: ArukUse
         setAuthConfig({
           emailDelivery: config.emailDelivery === true,
           developmentEmailLog: config.developmentEmailLog === true,
+          adminSetupRequired: config.adminSetupRequired === true,
           google: config.google === true,
           github: config.github === true,
         });
@@ -110,13 +113,20 @@ export function AuthPanel({ onAuthenticated }: { onAuthenticated: (user: ArukUse
         }
         const name = String(values.get("name") || "").trim();
         if (name.length < 1 || name.length > 100) throw new Error("Enter a name between 1 and 100 characters.");
-        const result = await authClient.signUp.email({
-          name,
-          email,
-          password,
-          callbackURL: window.location.origin + "/",
+        const response = await fetch("/api/auth", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            action: "register",
+            name,
+            email,
+            password,
+            adminSetupToken: String(values.get("adminSetupToken") || ""),
+          }),
         });
-        if (result.error) throw new Error(result.error.message);
+        const payload = await response.json().catch(() => null) as { error?: unknown } | null;
+        if (!response.ok) throw new Error(typeof payload?.error === "string" ? payload.error : "Account registration failed.");
+        setAuthConfig((current) => ({ ...current, adminSetupRequired: false }));
         setNotice(authConfig.emailDelivery
           ? "Check your email to verify your address and finish creating your Aruk account."
           : "The verification link is printed in the local terminal running Aruk. Open it there to finish creating your account.");
@@ -203,14 +213,21 @@ export function AuthPanel({ onAuthenticated }: { onAuthenticated: (user: ArukUse
         <CardContent>
           <form onSubmit={submit} className="space-y-4">
             {mode === "register" && <div className="space-y-2"><Label htmlFor="name">Name</Label><Input id="name" name="name" autoComplete="name" maxLength={100} required /></div>}
+            {mode === "register" && authConfig.adminSetupRequired && (
+              <div className="space-y-2">
+                <Label htmlFor="adminSetupToken">One-time admin setup token</Label>
+                <Input id="adminSetupToken" name="adminSetupToken" type="password" autoComplete="off" required />
+                <p className="text-[11px] text-muted-foreground">The first account becomes Aruk’s administrator. Enter the server’s ADMIN_SETUP_TOKEN.</p>
+              </div>
+            )}
             {(mode === "login" || mode === "register" || mode === "recovery") && (
               <div className="space-y-2"><Label htmlFor="email">Email</Label><Input id="email" name="email" type="email" autoComplete="email" maxLength={254} required /></div>
             )}
             {(mode === "login" || mode === "register") && (
               <div className="space-y-2">
                 <Label htmlFor="password">Password</Label>
-                <Input id="password" name="password" type="password" autoComplete={mode === "login" ? "current-password" : "new-password"} minLength={mode === "register" ? 12 : undefined} maxLength={128} required />
-                {mode === "register" && <p className="text-[11px] text-muted-foreground">Use at least 12 characters.</p>}
+                <Input id="password" name="password" type="password" autoComplete={mode === "login" ? "current-password" : "new-password"} minLength={mode === "register" ? 8 : undefined} maxLength={128} required />
+                {mode === "register" && <p className="text-[11px] text-muted-foreground">Use at least 8 characters.</p>}
               </div>
             )}
             {mode === "mfa" && (
@@ -232,16 +249,21 @@ export function AuthPanel({ onAuthenticated }: { onAuthenticated: (user: ArukUse
 
           {(mode === "login" || mode === "register") && (
             <div className="mt-4 space-y-2 border-t border-border/30 pt-4">
-              <Button type="button" variant="outline" disabled={busy || !authConfig.google} className="w-full gap-2" onClick={() => void oauth("google")}>
+              <Button type="button" variant="outline" disabled={busy || !authConfig.google || (mode === "register" && authConfig.adminSetupRequired)} className="w-full gap-2" onClick={() => void oauth("google")}>
                 <span className="font-bold text-base">G</span> {mode === "register" ? "Create account with Google" : "Continue with Google"}
               </Button>
-              <Button type="button" variant="outline" disabled={busy || !authConfig.github} className="w-full gap-2" onClick={() => void oauth("github")}>
+              <Button type="button" variant="outline" disabled={busy || !authConfig.github || (mode === "register" && authConfig.adminSetupRequired)} className="w-full gap-2" onClick={() => void oauth("github")}>
                 <Github className="h-4 w-4" /> {mode === "register" ? "Create account with GitHub" : "Continue with GitHub"}
               </Button>
               {mode === "login" && (
                 <Button type="button" variant="outline" disabled={busy} className="w-full gap-2" onClick={() => void passkey()}>
                   <Fingerprint className="h-4 w-4" /> Sign in with a passkey
                 </Button>
+              )}
+              {mode === "register" && authConfig.adminSetupRequired && (
+                <p className="text-center text-[10px] leading-4 text-muted-foreground">
+                  Create the first administrator with email and the one-time setup token. Google and GitHub registration become available afterward.
+                </p>
               )}
               {!authConfig.google && !authConfig.github && (
                 <p className="text-center text-[10px] leading-4 text-muted-foreground">

@@ -23,7 +23,6 @@ import {
 
 import { AuthPanel, type ArukUser } from "@/components/auth-panel";
 import { AccountTab } from "@/components/account-tab";
-import { requestJson } from "@/lib/client-api";
 import { authClient } from "@/lib/auth-client";
 import { OverviewTab } from "@/components/api-bank/overview-tab";
 import { VaultTab } from "@/components/api-bank/vault-tab";
@@ -34,6 +33,7 @@ import { AuditTab } from "@/components/api-bank/audit-tab";
 import { PerimeterTab } from "@/components/api-bank/perimeter-tab";
 import { CloudsTab } from "@/components/api-bank/clouds-tab";
 import { PassageTab } from "@/components/api-bank/passage-tab";
+import { SystemStatus } from "@/components/system-status";
 
 const TAB_KEYS = [
   "overview",
@@ -204,6 +204,7 @@ export default function Home() {
               <span className={serviceHealth === "healthy" ? "text-emerald-500" : serviceHealth === "checking" ? "text-amber-400" : "text-red-400"}>
                 SERVICE {serviceHealth.toUpperCase()}
               </span>
+              <span className="text-muted-foreground">CORE SURFACE</span>
             </div>
           </div>
 
@@ -216,9 +217,9 @@ export default function Home() {
             </div>
 
             <div className="hidden sm:flex items-center px-2 py-1 rounded-lg bg-muted/30 border border-border/30 text-[11px] text-muted-foreground">
+              <UserRound className="mr-1.5 h-3.5 w-3.5" />
               Personal control plane · {authUser.name}
             </div>
-
             <div className="w-px h-5 bg-border/60 mx-0.5" />
 
             <Button
@@ -249,6 +250,7 @@ export default function Home() {
 
       {/* ── Main Content ────────────────────────────────────────── */}
       <main className="flex-1 mx-auto w-full max-w-[1600px] px-3 py-5 sm:px-5 lg:px-6">
+        <SystemStatus refreshKey={refreshKey} />
         <Tabs value={activeTab} onValueChange={setActiveTab} className="mx-auto grid w-full grid-cols-1 items-start gap-4 lg:grid-cols-[210px_minmax(0,1fr)]">
           <TabsList className="grid w-full grid-cols-3 gap-1 bg-muted/25 p-2 rounded-xl border border-border/25 dark:border-border/12 backdrop-blur-md lg:sticky lg:top-24 lg:col-start-1 lg:row-start-1 lg:flex lg:h-auto lg:flex-col lg:items-stretch">
             {TAB_CONFIG.map(({ value, label, icon: Icon }) => (
@@ -289,7 +291,7 @@ export default function Home() {
               <CloudsTab refreshKey={refreshKey} />
             </TabsContent>
             <TabsContent value="passage" className="mt-0">
-              <PassageTab refreshKey={refreshKey} />
+              <PassageTab refreshKey={refreshKey} onRefresh={refresh} />
             </TabsContent>
             <TabsContent value="account" className="mt-0">
               <AccountTab user={authUser} onDeleted={handleAccountDeleted} />

@@ -1,5 +1,6 @@
 import { after } from "next/server";
 import { betterAuth } from "better-auth/minimal";
+import { APIError, createAuthMiddleware } from "better-auth/api";
 import { nextCookies } from "better-auth/next-js";
 import { bearer, twoFactor } from "better-auth/plugins";
 import { passkey } from "@better-auth/passkey";
@@ -8,6 +9,7 @@ import { prismaAdapter } from "@better-auth/prisma-adapter";
 import { db } from "./db";
 import { resolveOrPersistSecret } from "./secret-bootstrap";
 import { sendAuthEmail } from "./auth-email";
+import { allowAuthAttempt } from "./auth-rate-limit";
 
 const databaseUrl = process.env.DATABASE_URL || "file:./db/custom.db";
 const databaseProvider = /^postgres(?:ql)?:\/\//i.test(databaseUrl) ? "postgresql" : "sqlite";
@@ -42,7 +44,7 @@ export const auth = betterAuth({
     enabled: true,
     requireEmailVerification: true,
     autoSignIn: false,
-    minPasswordLength: 12,
+    minPasswordLength: 8,
     maxPasswordLength: 128,
     revokeSessionsOnPasswordReset: true,
     sendResetPassword: async ({ user, url }) => {
@@ -69,11 +71,44 @@ export const auth = betterAuth({
   },
   socialProviders: {
     ...(googleClientId && googleClientSecret
-      ? { google: { clientId: googleClientId, clientSecret: googleClientSecret, prompt: "select_account", disableImplicitSignUp: false } }
+      ? { google: { clientId: googleClientId, clientSecret: googleClientSecret, prompt: "select_account", disableImplicitSignUp: true } }
       : {}),
     ...(githubClientId && githubClientSecret
-      ? { github: { clientId: githubClientId, clientSecret: githubClientSecret, scope: ["read:user", "user:email"], disableImplicitSignUp: false } }
+      ? { github: { clientId: githubClientId, clientSecret: githubClientSecret, scope: ["read:user", "user:email"], disableImplicitSignUp: true } }
       : {}),
+  },
+  user: {
+    additionalFields: {
+      role: { type: "string", required: false, defaultValue: "USER", input: false, returned: true },
+    },
+  },
+  databaseHooks: {
+    user: {
+      create: {
+        before: async (user) => ({
+          data: { ...user, email: user.email.trim().toLowerCase(), role: "USER" },
+        }),
+      },
+    },
+  },
+  hooks: {
+    before: createAuthMiddleware(async (ctx) => {
+      // Email registrations must pass through the transaction that elects the first admin.
+      if (ctx.path === "/sign-up/email") {
+        throw new APIError("FORBIDDEN", { message: "Use Aruk's account registration flow." });
+      }
+
+      // OAuth can create later user accounts, but cannot bypass the initial admin setup token.
+      if (ctx.path === "/sign-in/social" && ctx.body?.requestSignUp === true) {
+        const provider = typeof ctx.body.provider === "string" ? ctx.body.provider : "social";
+        if (!ctx.request || !allowAuthAttempt(ctx.request, "register", `oauth:${provider}`)) {
+          throw new APIError("TOO_MANY_REQUESTS", { message: "Too many registration attempts. Try again later." });
+        }
+        if (await db.user.count() === 0) {
+          throw new APIError("FORBIDDEN", { message: "The first account must use email and the admin setup token." });
+        }
+      }
+    }),
   },
   account: {
     encryptOAuthTokens: true,
@@ -92,6 +127,16 @@ export const auth = betterAuth({
   advanced: {
     backgroundTasks: { handler: (promise) => { after(() => promise); } },
     useSecureCookies: process.env.NODE_ENV === "production",
+    cookies: {
+      session_token: {
+        attributes: {
+          httpOnly: true,
+          sameSite: "lax",
+          path: "/",
+          secure: process.env.NODE_ENV === "production",
+        },
+      },
+    },
   },
 });
 
@@ -117,7 +162,6 @@ export async function getSessionContext(req: Request): Promise<SessionContext | 
     });
     return DEV_USER;
   }
-
   const authorization = req.headers.get("authorization");
   const bearerMatch = authorization?.match(/^Bearer\s+([^\s]+)$/i);
   if (authorization && !bearerMatch) return null;

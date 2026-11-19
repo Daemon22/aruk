@@ -1,4 +1,6 @@
-// Aruk — authenticated encryption for stored credentials and files.
+// ============================================================
+// Aruk — Authenticated Encryption at Rest
+// ============================================================
 import { createCipheriv, createDecipheriv, randomBytes, scryptSync } from "crypto";
 import { resolveOrPersistSecret } from "@/lib/secret-bootstrap";
 

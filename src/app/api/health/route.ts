@@ -5,12 +5,11 @@ import { NextResponse } from 'next/server';
 export async function GET() {
   try {
     await db.$queryRaw`SELECT 1`;
-
     return NextResponse.json({
       status: 'healthy',
       database: 'connected',
       uptime: process.uptime(),
-      service: 'aruk',
+       service: 'aruk',
     }, {
       status: 200,
       headers: { 'Cache-Control': 'no-store' },

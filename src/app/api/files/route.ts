@@ -96,7 +96,13 @@ export async function POST(req: NextRequest) {
         reader.releaseLock();
       }
     }
-    form = await new Response(Buffer.concat(chunks), {
+    const multipartBody = new Uint8Array(size);
+    let offset = 0;
+    for (const chunk of chunks) {
+      multipartBody.set(chunk, offset);
+      offset += chunk.byteLength;
+    }
+    form = await new Response(multipartBody, {
       headers: { "Content-Type": req.headers.get("content-type") || "" },
     }).formData();
   } catch {
