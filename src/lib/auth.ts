@@ -48,12 +48,12 @@ export const auth = betterAuth({
     maxPasswordLength: 128,
     revokeSessionsOnPasswordReset: true,
     sendResetPassword: async ({ user, url }) => {
-      after(() => sendAuthEmail({
+      await sendAuthEmail({
         to: user.email,
         subject: "Reset your Aruk password",
         message: "Use this one-time link to choose a new password.",
         url,
-      }).catch((error: unknown) => console.error("[aruk] auth email failed:", error instanceof Error ? error.message : error)));
+      });
     },
   },
   emailVerification: {
@@ -61,12 +61,12 @@ export const auth = betterAuth({
     autoSignInAfterVerification: true,
     expiresIn: 60 * 60,
     sendVerificationEmail: async ({ user, url }) => {
-      after(() => sendAuthEmail({
+      await sendAuthEmail({
         to: user.email,
         subject: "Verify your Aruk email",
         message: "Verify your email address to finish creating your Aruk account.",
         url,
-      }).catch((error: unknown) => console.error("[aruk] auth email failed:", error instanceof Error ? error.message : error)));
+      });
     },
   },
   socialProviders: {

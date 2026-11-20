@@ -69,7 +69,7 @@
     "@radix-ui/react-toggle-group": "^1.1.10",
     "@radix-ui/react-tooltip": "^1.2.7",
     "better-auth": "^1.7.17",
-    "craft-engine": "0.2.0",
+    "craft-engine": "git+https://github.com/Daemon22/craft-engine.git#2855eff21c6e5fcf59ae771e4823fa92397e5031",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cmdk": "^1.1.1",

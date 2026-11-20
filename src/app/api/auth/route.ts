@@ -157,7 +157,13 @@ export async function POST(req: NextRequest) {
           headers: req.headers,
         });
       } catch (error) {
-        console.error("[aruk] verification email could not be requested:", error instanceof Error ? error.message : error);
+        console.error("[aruk] verification email could not be delivered:", error instanceof Error ? error.message : error);
+        // Do not leave an unusable account behind when the required verification
+        // email cannot be delivered. Cascades remove its credential and token rows.
+        await db.user.delete({ where: { id: user.id } }).catch((cleanupError) => {
+          console.error("[aruk] failed to roll back undeliverable account:", cleanupError instanceof Error ? cleanupError.message : cleanupError);
+        });
+        return errorResponse("We could not deliver the verification email. Please check the email sender configuration and try again.", 503);
       }
       return NextResponse.json({
         ok: true,
