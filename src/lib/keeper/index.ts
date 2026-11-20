@@ -425,38 +425,62 @@ export class Keeper {
   }
 
   async usePass(token: string, expected?: PassConstraint): Promise<GateDecision> {
-    const pass = await db.accessPass.findUnique({
-      where: { token },
-      include: { daemon: true, policy: true },
-    });
+    for (let attempt = 0; attempt < 5; attempt += 1) {
+      const pass = await db.accessPass.findUnique({
+        where: { token },
+        include: { daemon: true, policy: true },
+      });
 
-    if (!pass) return { allowed: false, reason: 'No such pass exists' };
-    if (pass.status === 'revoked') return { allowed: false, reason: 'Pass has been revoked' };
-    if (pass.status === 'consumed') return { allowed: false, reason: 'Pass has been fully consumed' };
-    if (new Date() > pass.expiresAt) {
-      await db.accessPass.update({ where: { id: pass.id }, data: { status: 'expired' } });
-      return { allowed: false, reason: 'Pass has expired' };
-    }
-    if (expected) {
-      const resourceMatches = pass.resourceType === expected.resourceType &&
-        (!pass.resourceId || pass.resourceId === expected.resourceId);
-      const scopeMatches = pass.scope === expected.scope || pass.scope === 'admin';
-      if (!resourceMatches || !scopeMatches) {
-        return { allowed: false, reason: 'Pass is not valid for this resource or scope' };
+      if (!pass) return { allowed: false, reason: 'No such pass exists' };
+      if (pass.status === 'revoked') return { allowed: false, reason: 'Pass has been revoked' };
+      if (pass.status === 'consumed') return { allowed: false, reason: 'Pass has been fully consumed' };
+      const now = new Date();
+      if (now >= pass.expiresAt) {
+        await db.accessPass.updateMany({
+          where: { id: pass.id, status: 'active', expiresAt: { lte: now } },
+          data: { status: 'expired' },
+        });
+        return { allowed: false, reason: 'Pass has expired' };
       }
-    }
-    if (pass.maxUses && pass.usedCount >= pass.maxUses) {
-      await db.accessPass.update({ where: { id: pass.id }, data: { status: 'consumed' } });
-      return { allowed: false, reason: 'Pass usage limit reached' };
+      if (pass.status !== 'active') return { allowed: false, reason: 'Pass is not active' };
+      if (expected) {
+        const resourceMatches = pass.resourceType === expected.resourceType &&
+          (!pass.resourceId || pass.resourceId === expected.resourceId);
+        const scopeMatches = pass.scope === expected.scope || pass.scope === 'admin';
+        if (!resourceMatches || !scopeMatches) {
+          return { allowed: false, reason: 'Pass is not valid for this resource or scope' };
+        }
+      }
+      if (pass.maxUses !== null && pass.usedCount >= pass.maxUses) {
+        await db.accessPass.updateMany({
+          where: { id: pass.id, status: 'active', usedCount: pass.usedCount, maxUses: pass.maxUses },
+          data: { status: 'consumed' },
+        });
+        return { allowed: false, reason: 'Pass usage limit reached' };
+      }
+
+      const nextUseConsumesPass = pass.maxUses !== null && pass.usedCount + 1 >= pass.maxUses;
+      const updated = await db.accessPass.updateMany({
+        where: {
+          id: pass.id,
+          status: 'active',
+          usedCount: pass.usedCount,
+          maxUses: pass.maxUses,
+          expiresAt: { gt: now },
+        },
+        data: {
+          usedCount: { increment: 1 },
+          lastUsedAt: now,
+          ...(nextUseConsumesPass ? { status: 'consumed' } : {}),
+        },
+      });
+      if (updated.count === 1) {
+        return { allowed: true, reason: 'Pass validated', daemonId: pass.daemonId };
+      }
+      // Another request changed the pass after our read; re-read and re-evaluate.
     }
 
-    const consumed = pass.maxUses && pass.usedCount + 1 >= pass.maxUses;
-    await db.accessPass.update({
-      where: { id: pass.id },
-      data: { usedCount: { increment: 1 }, lastUsedAt: new Date(), ...(consumed ? { status: 'consumed' } : {}) },
-    });
-
-    return { allowed: true, reason: 'Pass validated', daemonId: pass.daemonId };
+    return { allowed: false, reason: 'Pass changed while being validated; retry the request' };
   }
 
   // ── PASSAGE RULES (Perimeter) ─────────────────────

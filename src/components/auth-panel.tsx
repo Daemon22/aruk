@@ -12,6 +12,8 @@ export type ArukUser = { id: string; email: string; name: string };
 
 type Mode = "login" | "register" | "recovery" | "mfa";
 type AuthConfig = {
+  databaseAvailable: boolean | null;
+  registrationAvailable: boolean | null;
   emailDelivery: boolean;
   developmentEmailLog: boolean;
   adminSetupRequired: boolean;
@@ -20,6 +22,8 @@ type AuthConfig = {
 };
 
 const defaultAuthConfig: AuthConfig = {
+  databaseAvailable: null,
+  registrationAvailable: null,
   emailDelivery: false,
   developmentEmailLog: false,
   adminSetupRequired: false,
@@ -43,6 +47,8 @@ export function AuthPanel({ onAuthenticated }: { onAuthenticated: (user: ArukUse
         if (!active || !value || typeof value !== "object") return;
         const config = value as Partial<AuthConfig>;
         setAuthConfig({
+          databaseAvailable: config.databaseAvailable === true,
+          registrationAvailable: config.registrationAvailable === true,
           emailDelivery: config.emailDelivery === true,
           developmentEmailLog: config.developmentEmailLog === true,
           adminSetupRequired: config.adminSetupRequired === true,
@@ -50,7 +56,9 @@ export function AuthPanel({ onAuthenticated }: { onAuthenticated: (user: ArukUse
           github: config.github === true,
         });
       })
-      .catch(() => undefined);
+      .catch(() => {
+        if (active) setAuthConfig((current) => ({ ...current, databaseAvailable: false, registrationAvailable: false }));
+      });
     return () => { active = false; };
   }, []);
 
@@ -241,7 +249,7 @@ export function AuthPanel({ onAuthenticated }: { onAuthenticated: (user: ArukUse
             )}
             {error && <p role="alert" className="rounded-lg border border-red-500/25 bg-red-500/5 px-3 py-2 text-xs text-red-300">{error}</p>}
             {notice && <p role="status" className="rounded-lg border border-emerald-500/25 bg-emerald-500/5 px-3 py-2 text-xs text-emerald-300">{notice}</p>}
-            <Button type="submit" disabled={busy} className="w-full gap-2 rounded-lg">
+            <Button type="submit" disabled={busy || (mode === "register" && authConfig.registrationAvailable !== true)} className="w-full gap-2 rounded-lg">
               <ShieldCheck className="h-4 w-4" />
               {busy ? "Please wait…" : mode === "login" ? "Sign in securely" : mode === "register" ? "Create account" : mode === "recovery" ? "Send recovery email" : "Verify code"}
             </Button>
@@ -291,7 +299,18 @@ export function AuthPanel({ onAuthenticated }: { onAuthenticated: (user: ArukUse
             </div>
           )}
 
-          {mode !== "mfa" && !authConfig.emailDelivery && (
+          {mode === "register" && authConfig.registrationAvailable !== true && (
+            <div role="status" className="mt-4 rounded-lg border border-amber-300/20 bg-amber-200/5 px-3 py-2 text-[11px] leading-5 text-muted-foreground">
+              {authConfig.databaseAvailable === false
+                ? "Account creation is temporarily unavailable because Aruk cannot reach its database. Please try again later."
+                : !authConfig.emailDelivery && !authConfig.developmentEmailLog
+                  ? "Account creation is unavailable until a verified email sender is configured."
+                  : authConfig.adminSetupRequired
+                    ? "Initial account setup is not complete. The administrator must configure the one-time setup token."
+                    : "Account creation is temporarily unavailable while Aruk checks its setup."}
+            </div>
+          )}
+          {mode !== "mfa" && mode !== "register" && !authConfig.emailDelivery && (
             <div className="mt-4 rounded-lg border border-border/40 bg-muted/20 px-3 py-2 text-[11px] leading-5 text-muted-foreground">
               {authConfig.developmentEmailLog
                 ? "Development verification and recovery links are written to the terminal running Aruk."

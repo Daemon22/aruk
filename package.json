@@ -18,7 +18,7 @@
   },
   "scripts": {
     "dev": "next dev -p 3000",
-    "test": "tsx scripts/test-crypto.ts && tsx scripts/test-secret-bootstrap.ts && tsx scripts/test-auth.ts && node scripts/test-security-hardening.cjs && node scripts/test-upload-and-client.cjs",
+    "test": "tsx scripts/test-crypto.ts && tsx scripts/test-secret-bootstrap.ts && tsx scripts/test-auth.ts && tsx scripts/test-pass-concurrency.ts && node scripts/test-security-hardening.cjs && node scripts/test-upload-and-client.cjs",
     "build": "next build --webpack && node scripts/copy-build-assets.mjs",
     "start": "NODE_ENV=production bun .next/standalone/server.js",
     "lint": "eslint .",
@@ -76,7 +76,7 @@
     "embla-carousel-react": "^8.6.0",
     "input-otp": "^1.4.2",
     "lucide-react": "^0.525.0",
-    "next": "^16.1.1",
+    "next": "^16.4.6",
     "next-themes": "^0.4.6",
     "prisma": "^6.11.1",
     "qrcode.react": "^4.2.0",

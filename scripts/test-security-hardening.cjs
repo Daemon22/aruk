@@ -18,6 +18,8 @@ const health = read('src/app/api/health/route.ts');
 const authRoute = read('src/app/api/auth/route.ts');
 const authPanel = read('src/components/auth-panel.tsx');
 const authRateLimit = read('src/lib/auth-rate-limit.ts');
+const authConfigRoute = read('src/app/api/auth/config/route.ts');
+const authConfigUi = read('src/components/auth-panel.tsx');
 const sqliteSchema = read('prisma/schema.prisma');
 const postgresSchema = read('prisma/postgres/schema.prisma');
 const sqliteAuthMigration = read('prisma/migrations/20261114120000_add_user_role_and_normalize_email/migration.sql');
@@ -75,9 +77,35 @@ assert(keeper.includes("where: { id: reference, userId }"), 'daemon lineage refe
 assert(keeper.includes("where: { id: data.policyId, userId }"), 'pass policy references require same-user ownership');
 assert(health.includes("service: 'aruk'"), 'public health is liveness-only and contains no account aggregates');
 assert(keeper.includes('expected?: PassConstraint'), 'passes can be constrained to the requested resource and scope');
+assert(keeper.includes('const updated = await db.accessPass.updateMany') && keeper.includes('usedCount: pass.usedCount') && keeper.includes('updated.count === 1'), 'pass usage is atomically claimed with compare-and-swap to enforce max-use limits');
 assert(agent.includes('keeper.usePass(passToken, { resourceType, resourceId, scope })'), 'agent gates bind passes to resource and scope');
 assert(offload.includes("keeper.usePass(passToken, { resourceType: 'cloud_account', resourceId: cloudAccountId, scope })"), 'offload gates bind passes to cloud account and scope');
 assert(keeper.includes('passToken: null'), 'audit views do not expose bearer pass tokens');
+assert(authConfigRoute.includes('databaseAvailable: false') && authConfigRoute.includes('registrationAvailable: false'), 'auth readiness fails closed with an explicit unavailable response when the database cannot be queried');
+assert(authConfigRoute.includes('bootstrapAvailable') && authConfigRoute.includes('emailAvailable'), 'signup readiness includes mail delivery and first-admin bootstrap prerequisites');
+assert(authConfigUi.includes('authConfig.registrationAvailable !== true') && authConfigUi.includes('cannot reach its database'), 'signup UI disables creation and explains database unavailability');
+
+const publicRouteExemptions = new Set([
+  'src/app/api/auth/config/route.ts',
+  'src/app/api/auth/[...all]/route.ts',
+  'src/app/api/health/route.ts',
+  'src/app/api/route.ts',
+]);
+const apiRoot = path.join(root, 'src/app/api');
+function visitRoutes(directory) {
+  for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
+    const fullPath = path.join(directory, entry.name);
+    if (entry.isDirectory()) visitRoutes(fullPath);
+    else if (entry.name === 'route.ts') {
+      const relativePath = path.relative(root, fullPath).split(path.sep).join('/');
+      if (!publicRouteExemptions.has(relativePath)) {
+        const source = read(relativePath);
+        assert(source.includes('getSession(') || source.includes('getSessionContext('), `${relativePath} requires an authenticated session`);
+      }
+    }
+  }
+}
+visitRoutes(apiRoot);
 
 console.log('\nSecurity hardening contract checks passed.');
 
