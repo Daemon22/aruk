@@ -11,7 +11,9 @@ export async function GET() {
   try {
     adminSetupRequired = await db.user.count() === 0;
   } catch (error) {
-    console.error("[aruk] auth readiness database check failed:", error instanceof Error ? error.name : "unknown error");
+    const message = error instanceof Error ? error.message : "unknown error";
+    const safeMessage = message.replace(/(postgres(?:ql)?:\/\/[^\s:@]+:)[^@\s]+@/gi, "$1[redacted]@");
+    console.error("[aruk] auth readiness database check failed:", error instanceof Error ? error.name : "unknown error", safeMessage);
     return NextResponse.json({
       databaseAvailable: false,
       registrationAvailable: false,
