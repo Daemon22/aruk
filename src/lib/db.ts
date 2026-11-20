@@ -1,5 +1,6 @@
 import { PrismaClient as SQLitePrismaClient } from "@prisma/client";
 import { PrismaClient as PostgresPrismaClient } from "@prisma/client-postgres";
+import { isPostgresDatabaseUrl, resolveDatabaseUrl } from "./database-url";
 
 const globalForPrisma = globalThis as unknown as {
   sqlitePrisma: SQLitePrismaClient | undefined;
@@ -7,8 +8,8 @@ const globalForPrisma = globalThis as unknown as {
 };
 
 const log = process.env.NODE_ENV === "production" ? ["error"] as const : ["warn", "error"] as const;
-const databaseUrl = process.env.DATABASE_URL || "file:./db/custom.db";
-const usesPostgres = /^postgres(?:ql)?:\/\//i.test(databaseUrl);
+const databaseUrl = resolveDatabaseUrl();
+const usesPostgres = isPostgresDatabaseUrl(databaseUrl);
 
 const sqlite = globalForPrisma.sqlitePrisma ?? new SQLitePrismaClient({ log: [...log] });
 const postgres = usesPostgres

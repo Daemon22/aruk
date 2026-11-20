@@ -1,6 +1,7 @@
 import { auth, getSession, hasTrustedOrigin } from "@/lib/auth";
 import { allowAuthAttempt } from "@/lib/auth-rate-limit";
 import { db } from "@/lib/db";
+import { isPostgresDatabaseUrl, resolveDatabaseUrl } from "@/lib/database-url";
 import { NextRequest, NextResponse } from "next/server";
 import { timingSafeEqual } from "node:crypto";
 
@@ -60,7 +61,7 @@ async function forwardAuthAction(req: NextRequest, endpoint: "sign-in/email" | "
 async function createRegisteredUser(email: string, name: string, password: string, setupToken: unknown) {
   const context = await auth.$context;
   const passwordHash = await context.password.hash(password);
-  const postgres = /^postgres(?:ql)?:\/\//i.test(process.env.DATABASE_URL || "");
+  const postgres = isPostgresDatabaseUrl(resolveDatabaseUrl());
   const transactionOptions = postgres ? { isolationLevel: "Serializable" as const } : undefined;
 
   for (let attempt = 0; attempt < 3; attempt += 1) {

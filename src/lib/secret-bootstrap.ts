@@ -22,9 +22,10 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'fs';
 import { dirname, resolve } from 'path';
 import { randomBytes } from 'crypto';
+import { resolveDatabaseUrl } from './database-url';
 
 function dataDir(): string {
-  const dbUrl = process.env.DATABASE_URL || '';
+  const dbUrl = resolveDatabaseUrl();
   if (dbUrl.startsWith('file:')) {
     const dbPath = dbUrl.replace(/^file:/, '');
     const dir = dirname(dbPath);
