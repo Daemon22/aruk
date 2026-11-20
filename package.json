@@ -18,7 +18,7 @@
   },
   "scripts": {
     "dev": "next dev -p 3000",
-    "test": "tsx scripts/test-crypto.ts && tsx scripts/test-secret-bootstrap.ts && tsx scripts/test-auth.ts && tsx scripts/test-pass-concurrency.ts && node scripts/test-security-hardening.cjs && node scripts/test-upload-and-client.cjs",
+    "test": "tsx scripts/test-crypto.ts && tsx scripts/test-secret-bootstrap.ts && tsx scripts/test-auth.ts && tsx scripts/test-pass-concurrency.ts && node scripts/test-security-hardening.cjs && node scripts/test-upload-and-client.cjs && node scripts/test-craft-archive.cjs",
     "build": "next build --webpack && node scripts/copy-build-assets.mjs",
     "start": "NODE_ENV=production bun .next/standalone/server.js",
     "lint": "eslint .",
@@ -69,6 +69,7 @@
     "@radix-ui/react-toggle-group": "^1.1.10",
     "@radix-ui/react-tooltip": "^1.2.7",
     "better-auth": "^1.7.17",
+    "craft-engine": "^0.2.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cmdk": "^1.1.1",

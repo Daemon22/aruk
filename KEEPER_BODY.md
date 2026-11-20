@@ -71,7 +71,7 @@ The Keeper's body is complete when all of the following hold:
 1. Keep the security-boundary repair as the prerequisite; preserve owner scoping, fail-closed access, and secret redaction.
 2. Add stable identity-to-credential associations and lifecycle operations for registration, attestation, rotation, expiry, and revocation.
 3. Add owner-scoped capacity accounting, warning thresholds, and a dry-run retention report.
-4. Add verified CRAFT archive and restore handling for policy-eligible material, retaining the existing live-vault path until restore verification succeeds.
+4. Extend the authenticated Craft archive/restore tool to policy-eligible Keeper workflows; retain the existing live-vault path until those automated restores pass verification.
 5. Add UPMP-backed health observations and bounded, authorized recovery workflows with durable audit outcomes.
 6. Expose one consistent Keeper status and identity experience through every supported client.
 

@@ -100,7 +100,9 @@ function visitRoutes(directory) {
       const relativePath = path.relative(root, fullPath).split(path.sep).join('/');
       if (!publicRouteExemptions.has(relativePath)) {
         const source = read(relativePath);
-        assert(source.includes('getSession(') || source.includes('getSessionContext('), `${relativePath} requires an authenticated session`);
+        const delegatedAuth = source.includes('handleCraftArchiveRequest(')
+          && read('src/lib/craft-archive.ts').includes('getSession(request)');
+        assert(source.includes('getSession(') || source.includes('getSessionContext(') || delegatedAuth, `${relativePath} requires an authenticated session`);
       }
     }
   }

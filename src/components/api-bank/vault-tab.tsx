@@ -43,6 +43,7 @@ import {
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { requestArray, requestJson } from "@/lib/client-api";
+import { CraftArchivePanel } from "@/components/api-bank/craft-archive-panel";
 import { VaultFilesPanel } from "@/components/api-bank/vault-files-panel";
 
 // ─── Types ──────────────────────────────────────────────────
@@ -449,6 +450,7 @@ export function VaultTab({ refreshKey, onRefresh }: { refreshKey: number; onRefr
 
   return (
     <div className="space-y-4">
+      <CraftArchivePanel />
       <VaultFilesPanel refreshKey={refreshKey} />
       {/* Header */}
       <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between">

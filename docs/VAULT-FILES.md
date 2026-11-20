@@ -18,6 +18,12 @@ Aruk stores uploaded files in its configured database (SQLite for local developm
 
 File contents are encrypted, but the database keeps the original filename, MIME type, size, digest, encryption/compression flags, and creation time as searchable metadata. The upload endpoint processes the file in memory, so this implementation is intended for small private files, not large object storage.
 
+## Craft archive and restore
+
+The Vault also exposes a separate Craft archive tool. It creates a compressed, authenticated `.craft` download from one input file, or restores a `.craft` file and downloads the original only after Craft reports integrity verification. Each input is limited to 8 MiB. The tool does not add these outputs to the `VaultFile` table, and it does not change the meaning of the existing `encrypted` or `compressed` fields.
+
+Craft inputs and passphrases are sent to the authenticated Aruk server and processed in memory for the response. They are not saved to Aruk's file database by this tool, but this is not client-side or zero-knowledge encryption: the server operator can technically access data processed by the server. Use a unique passphrase, retain it separately from the downloaded archive, and do not use this endpoint for large files. The endpoints require a signed-in session and a trusted request origin, cap actual request-body bytes, and mark responses `no-store`.
+
 ## Deploying safely
 
 1. Set a stable, high-entropy `ARUK_ENCRYPTION_KEY` in the deployment's secret manager. Back it up separately from the database. Key loss or rotation without re-encrypting existing data prevents recovery unless the original matching key is restored from backup.

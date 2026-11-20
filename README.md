@@ -201,9 +201,9 @@ curl -X POST http://localhost:3000/api/agent \
 
 ### Private files
 
-Aruk's Vault stores files in the configured database, encrypts file contents by default, and can optionally compress them. Downloads are account-scoped and integrity-checked. See [docs/VAULT-FILES.md](docs/VAULT-FILES.md) for key management, backups, the 8 MiB file limit, and deployment steps.
+Aruk's Vault stores files in the configured database, encrypts file contents by default, and can optionally apply per-file gzip compression. Downloads are account-scoped and integrity-checked. The separate Craft archive panel creates and restores authenticated `.craft` files for download; those inputs and passphrases are processed in server memory and are not saved by that tool. This is server-side processing, not zero-knowledge. See [docs/VAULT-FILES.md](docs/VAULT-FILES.md) for both workflows, key management, backups, the 8 MiB input limit, and deployment steps.
 
-Cloud destinations store encrypted credentials and metadata; they are not provider-verified. Passage records transfer metadata and does not move bytes. The Vault is the feature for storing files directly inside Aruk.
+Cloud destinations store encrypted credentials and metadata; they are not provider-verified. Passage records transfer metadata and does not move bytes. Private files is the feature for storing files directly inside Aruk; Craft archives are downloaded separately and are not inserted into that database-backed file list.
 
 ### Accounts and sign-in
 
