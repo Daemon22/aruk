@@ -160,7 +160,7 @@ export default function Home() {
       <main className="fixed inset-0 z-[100] grid min-h-screen place-items-center overflow-y-auto bg-[#080b0a] p-4 text-stone-100">
         <div className="flex w-full max-w-[520px] flex-col items-center gap-4">
           <figure className="relative flex h-[min(76vh,680px)] w-[min(88vw,454px)] items-center justify-center rounded-3xl border border-amber-200/20 bg-[radial-gradient(ellipse_at_center,rgba(217,174,80,0.08),transparent_62%),rgba(16,22,19,0.55)] shadow-2xl">
-            <img src="/identity/aruk-at-gate.jpg" alt="Aruk as the elephant guardian at the gate, shown in full" className="h-auto max-h-full w-auto max-w-full object-contain drop-shadow-2xl" />
+            <img src="/identity/aruk-at-gate.png" alt="Aruk: The Keeper, preserver, guardian, and continuity" className="h-auto max-h-full w-auto max-w-full object-contain drop-shadow-2xl" />
           </figure>
           <div className="flex flex-wrap items-center justify-center gap-3">
             <img src="/identity/aruk-mark.jpg" alt="" className="h-10 w-10 rounded-xl bg-[#eee5d2] object-cover" />
