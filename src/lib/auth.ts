@@ -7,12 +7,13 @@ import { passkey } from "@better-auth/passkey";
 import { getSessionCookie } from "better-auth/cookies";
 import { prismaAdapter } from "@better-auth/prisma-adapter";
 import { db } from "./db";
+import { isPostgresDatabaseUrl, resolveDatabaseUrl } from "./database-url";
 import { resolveOrPersistSecret } from "./secret-bootstrap";
 import { sendAuthEmail } from "./auth-email";
 import { allowAuthAttempt } from "./auth-rate-limit";
 
-const databaseUrl = process.env.DATABASE_URL || "file:./db/custom.db";
-const databaseProvider = /^postgres(?:ql)?:\/\//i.test(databaseUrl) ? "postgresql" : "sqlite";
+const databaseUrl = resolveDatabaseUrl();
+const databaseProvider = isPostgresDatabaseUrl(databaseUrl) ? "postgresql" : "sqlite";
 const baseURL = process.env.BETTER_AUTH_URL || process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
 const baseOrigin = new URL(baseURL).origin;
 const trustedOrigins = Array.from(new Set([
